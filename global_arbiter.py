@@ -96,7 +96,7 @@ class MilpGlobalArbiter(GlobalArbiter):
             gpus=1,
             model_interchange_time=[[150] for _ in range(self.models)],
             # model_tps=[[60*11000], [60*8000], [60*1600000], [60*1600000]],
-            model_tps=[[30*7516.67], [30*5398.07], [30*1600000], [30*1600000]],
+            model_tps=[[30*7516.67], [30*5398.07], [30*1600000], [30*1600000]][:self.models],
             gpu_cost=[10]
         )
         self.num_instances_log = {f"region_{i}_model_{j}": [] for i in range(self.regions) for j in range(self.models)}
