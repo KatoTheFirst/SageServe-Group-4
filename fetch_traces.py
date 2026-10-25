@@ -2,7 +2,7 @@
 Tải các trace đã đóng băng từ GitHub Release của repo, giải nén vào traces/ và kiểm sha256 theo traces/SHA256SUMS.
 Trace quá lớn để nằm trong git (> 100 MB/file) nên được đính vào Release dưới dạng .csv.gz.
 
-Dùng: python fetch_traces.py --repo <chủ>/<tên repo> [--tag traces-v1] [--only composed_day_3regions fork_s4_westus]
+Dùng: python fetch_traces.py [--repo KatoTheFirst/SageServe-Group-4] [--tag traces-v1] [--only composed_day_3regions fork_s4_westus]
 """
 import argparse
 import gzip
@@ -26,7 +26,7 @@ def sha256(path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--repo", default=None, help="<chủ>/<tên repo> trên GitHub")
+    ap.add_argument("--repo", default="KatoTheFirst/SageServe-Group-4", help="<chủ>/<tên repo> trên GitHub")
     ap.add_argument("--tag", default="traces-v1")
     ap.add_argument("--only", nargs="+", default=TRACES)
     ap.add_argument("--base", default=None, help="nguồn khác (vd. file:///D:/SageServe_release); mặc định là Release của repo")

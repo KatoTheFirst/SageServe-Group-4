@@ -17,7 +17,7 @@ Windows: đặt `PYTHONIOENCODING=utf-8`. Runner dùng biến `PY` (mặc địn
 ## 2. Trace (đã đóng băng – kiểm tra bằng `sha256sum -c traces/SHA256SUMS`)
 
 **Lấy trace nhanh (khuyên dùng):** các trace đã đóng băng nằm ở GitHub Release `traces-v1` của repo (dạng .csv.gz, 264 MB):
-`python fetch_traces.py --repo <chủ>/<tên repo>` – tự tải, giải nén vào `traces/` và kiểm sha256. Dự báo ARIMA đi kèm đã có
+`python fetch_traces.py` – tự tải, giải nén vào `traces/` và kiểm sha256. Dự báo ARIMA đi kèm đã có
 sẵn trong `traces/forecasts/`. Chỉ cần đọc phần dưới nếu muốn tự sinh lại trace từ dữ liệu thô.
 
 Bài báo có hai trace: **T7/2025** (mặc định cho §7) và **T11/2024** (dùng ở §4 và mục "Validation for Nov, 2024 Trace" của §7.2.7).
