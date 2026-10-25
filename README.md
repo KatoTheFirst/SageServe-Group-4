@@ -1,3 +1,17 @@
+# SageServe-Group-4
+BTL Các chuyên đề trong truyền thông và mạng máy tính - Nhóm 4
+
+## Tái hiện bài báo SageServe
+
+Code trong repo đã được sửa để chạy theo bài báo SageServe (arXiv 2502.14617v3).
+
+- Lấy trace: `python fetch_traces.py --repo KatoTheFirst/SageServe-Group-4`
+- Chạy thí nghiệm: `bash experiments/run.sh <tên>` (s4, lt, chiron, sched, nov2024, scale5, burst, week, h100, niw_ratio)
+- Kiểm thử: `python -m pytest`
+- Hướng dẫn đầy đủ, kết quả đối chiếu và các điểm còn lệch: [REPRODUCE.md](REPRODUCE.md)
+
+---
+
 # LLM Serving Stack Simulator
 
 ## Setup
