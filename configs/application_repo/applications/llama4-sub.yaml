@@ -1,0 +1,11 @@
+# §7.2.5 (thay thế): mô hình thứ 5 thay cho Llama 4 Scout (bảng hiệu năng không có) – dùng profile llama2-70b
+# Bài báo §4, §7.1: mỗi instance 8x A100, chọn instance theo số token còn lại (token-JSQ, §6.1)
+model_architecture: llama2-70b
+model_size: llama2-70b-fp16
+allocator: noop
+scheduler: token_jsq
+processor_affinity: a100
+processor_count: 8
+overheads: {}
+debug: default.debug
+_target_: application.Application

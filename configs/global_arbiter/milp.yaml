@@ -5,5 +5,10 @@ arima_traces: traces/forecasts/
 long_term_scaling_interval: 3600
 post_processing_strategy: immediate
 max_time: 604800
-arima_aware_arbiter: False
 _target_: global_arbiter.MilpGlobalArbiter
+# §5: mỗi vùng phải tự gánh ≥ ε đỉnh tải của mình (0 < ε ≤ 1), phần còn lại chuyển vùng khác.
+# Bài báo không cho giá trị ε; chọn 0,9 để còn chỗ cho chuyển vùng.
+epsilon: 0.9
+gpu_cost: 10          # α: chi phí 1 VM / giờ (chỉ cần tương đối)
+startup_time: 600     # σ = α x 600 s / 3600 (§6.1: khởi động instance ~10 phút)
+theta_file: data/theta_tps.csv

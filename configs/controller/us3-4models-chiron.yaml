@@ -1,0 +1,272 @@
+# Chiron (§7.2.3): mỗi vùng, mỗi mô hình 10 interactive (-p) / 5 mixed / 5 batch (-d); chạy với siloed=True
+# prompt_time (s) và decode_throughput (token/s của 1 instance ở batch 64) = profile offline từ data/perf_model_4models.csv (prompt 1024)
+power_budget: 232000
+
+regions:
+- region_id: 0
+  region_name: westus_chiron
+  region_cluster: dgx-a100
+  arbiter: chiron_arbiter
+  model_endpoints:
+  - model_endpoint_id: 0
+    model_name: llama2-70b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.101
+    decode_throughput: 1255.5
+  - model_endpoint_id: 1
+    model_name: llama2-70b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.101
+    decode_throughput: 1255.5
+  - model_endpoint_id: 2
+    model_name: llama2-70b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.101
+    decode_throughput: 1255.5
+  - model_endpoint_id: 3
+    model_name: bloom-176b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.289
+    decode_throughput: 662.6
+  - model_endpoint_id: 4
+    model_name: bloom-176b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.289
+    decode_throughput: 662.6
+  - model_endpoint_id: 5
+    model_name: bloom-176b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.289
+    decode_throughput: 662.6
+  - model_endpoint_id: 6
+    model_name: llama3.1-8b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.025
+    decode_throughput: 4185.1
+  - model_endpoint_id: 7
+    model_name: llama3.1-8b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.025
+    decode_throughput: 4185.1
+  - model_endpoint_id: 8
+    model_name: llama3.1-8b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.025
+    decode_throughput: 4185.1
+  - model_endpoint_id: 9
+    model_name: llama3.2-3b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.01
+    decode_throughput: 8370.2
+  - model_endpoint_id: 10
+    model_name: llama3.2-3b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.01
+    decode_throughput: 8370.2
+  - model_endpoint_id: 11
+    model_name: llama3.2-3b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.01
+    decode_throughput: 8370.2
+- region_id: 1
+  region_name: centralus_chiron
+  region_cluster: dgx-a100
+  arbiter: chiron_arbiter
+  model_endpoints:
+  - model_endpoint_id: 0
+    model_name: llama2-70b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.101
+    decode_throughput: 1255.5
+  - model_endpoint_id: 1
+    model_name: llama2-70b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.101
+    decode_throughput: 1255.5
+  - model_endpoint_id: 2
+    model_name: llama2-70b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.101
+    decode_throughput: 1255.5
+  - model_endpoint_id: 3
+    model_name: bloom-176b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.289
+    decode_throughput: 662.6
+  - model_endpoint_id: 4
+    model_name: bloom-176b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.289
+    decode_throughput: 662.6
+  - model_endpoint_id: 5
+    model_name: bloom-176b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.289
+    decode_throughput: 662.6
+  - model_endpoint_id: 6
+    model_name: llama3.1-8b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.025
+    decode_throughput: 4185.1
+  - model_endpoint_id: 7
+    model_name: llama3.1-8b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.025
+    decode_throughput: 4185.1
+  - model_endpoint_id: 8
+    model_name: llama3.1-8b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.025
+    decode_throughput: 4185.1
+  - model_endpoint_id: 9
+    model_name: llama3.2-3b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.01
+    decode_throughput: 8370.2
+  - model_endpoint_id: 10
+    model_name: llama3.2-3b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.01
+    decode_throughput: 8370.2
+  - model_endpoint_id: 11
+    model_name: llama3.2-3b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.01
+    decode_throughput: 8370.2
+- region_id: 2
+  region_name: eastus_chiron
+  region_cluster: dgx-a100
+  arbiter: chiron_arbiter
+  model_endpoints:
+  - model_endpoint_id: 0
+    model_name: llama2-70b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.101
+    decode_throughput: 1255.5
+  - model_endpoint_id: 1
+    model_name: llama2-70b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.101
+    decode_throughput: 1255.5
+  - model_endpoint_id: 2
+    model_name: llama2-70b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.101
+    decode_throughput: 1255.5
+  - model_endpoint_id: 3
+    model_name: bloom-176b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.289
+    decode_throughput: 662.6
+  - model_endpoint_id: 4
+    model_name: bloom-176b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.289
+    decode_throughput: 662.6
+  - model_endpoint_id: 5
+    model_name: bloom-176b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.289
+    decode_throughput: 662.6
+  - model_endpoint_id: 6
+    model_name: llama3.1-8b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.025
+    decode_throughput: 4185.1
+  - model_endpoint_id: 7
+    model_name: llama3.1-8b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.025
+    decode_throughput: 4185.1
+  - model_endpoint_id: 8
+    model_name: llama3.1-8b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.025
+    decode_throughput: 4185.1
+  - model_endpoint_id: 9
+    model_name: llama3.2-3b-p
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 10
+    prompt_time: 0.01
+    decode_throughput: 8370.2
+  - model_endpoint_id: 10
+    model_name: llama3.2-3b
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.01
+    decode_throughput: 8370.2
+  - model_endpoint_id: 11
+    model_name: llama3.2-3b-d
+    model_endpoint_router: chiron_round_robin
+    start_state: orca
+    instance_count: 5
+    prompt_time: 0.01
+    decode_throughput: 8370.2

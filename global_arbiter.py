@@ -3,6 +3,7 @@ import logging
 from abc import ABC
 from typing import List, Tuple
 import pandas as pd
+from hydra.utils import to_absolute_path
 
 from application import Application
 from model import ModelParallelism
@@ -35,6 +36,9 @@ class GlobalArbiter(ABC):
     def scaling_interval_reached(self) -> bool:
         return (clock() >= self.last_updated_time + self.long_term_scaling_interval)
     
+NIW_BUFFER = 0.1    # β (§6.3): 10% tải NIW của giờ trước
+
+
 class MilpGlobalArbiter(GlobalArbiter):
     """MILP based global router"""
     def __init__(self,
@@ -42,9 +46,16 @@ class MilpGlobalArbiter(GlobalArbiter):
                  long_term_scaling_interval,
                  post_processing_strategy,
                  max_time,
-                 arima_aware_arbiter):
+                 epsilon=1.0,
+                 gpu_cost=10,
+                 startup_time=600,
+                 theta_file="data/theta_tps.csv"):
         super().__init__(long_term_scaling_interval, max_time)
-        self.arima_traces = arima_traces
+        self.epsilon = epsilon
+        self.gpu_cost = gpu_cost
+        self.startup_time = startup_time
+        self.theta_file = to_absolute_path(theta_file)
+        self.arima_traces = to_absolute_path(arima_traces)   # hydra đổi cwd sang thư mục kết quả
         self.forecast_df = {}
         self.dev_df = {}
         self.region_clusters = None
@@ -52,7 +63,6 @@ class MilpGlobalArbiter(GlobalArbiter):
         self.milp_allocator = None
         self.post_processing_strategy = post_processing_strategy
         self.num_instances_log = None
-        self.arima_aware_arbiter = arima_aware_arbiter
     
     def add_region_routers(self, region_routers) -> None:
         self.region_routers = region_routers
@@ -81,8 +91,9 @@ class MilpGlobalArbiter(GlobalArbiter):
                 self.dev_df[region_id][model_name] = pd.read_csv(dev_file)
                 print(region_id, model_name, len(self.forecast_df[region_id][model_name]))
                 print(region_id, model_name, len(self.dev_df[region_id][model_name]))
-                if self.arima_aware_arbiter:
-                    self.region_clusters[region_id].arbiter.set_arima_forecast(self.forecast_df[region_id][model_name])
+                arbiter = self.region_clusters[region_id].arbiter
+                if hasattr(arbiter, "set_arima_forecast"):      # LT-UA
+                    arbiter.set_arima_forecast(model_name, self.forecast_df[region_id][model_name])
 
         unique_models = sorted(list(set(unique_models)))
         # unique_models = ["A", "B", "C", "D"]
@@ -90,14 +101,17 @@ class MilpGlobalArbiter(GlobalArbiter):
         self.model_list = unique_models
         for i in range(self.models):
             self.model_to_idx_mapping[unique_models[i]] = i
+        # θ (§5): TPS 1 instance gánh ở ngưỡng bộ nhớ 70%, đo bằng analyze_capacity.py; dự báo tính theo TPM nên ×60
+        theta = pd.read_csv(self.theta_file).set_index("model").theta_tps
         self.milp_allocator = MilpLongTermAllocation(
             models=self.models,
             regions=self.regions,
             gpus=1,
-            model_interchange_time=[[150] for _ in range(self.models)],
-            # model_tps=[[60*11000], [60*8000], [60*1600000], [60*1600000]],
-            model_tps=[[30*7516.67], [30*5398.07], [30*1600000], [30*1600000]][:self.models],
-            gpu_cost=[10]
+            model_tps=[[60 * theta[m.removesuffix("-p").removesuffix("-d")]] for m in unique_models],
+            gpu_cost=[self.gpu_cost],
+            # σ: chi phí khởi động = α x thời gian khởi động (§5), α tính theo giờ
+            startup_cost=[[self.gpu_cost * self.startup_time / 3600] for _ in range(self.models)],
+            epsilon=self.epsilon,
         )
         self.num_instances_log = {f"region_{i}_model_{j}": [] for i in range(self.regions) for j in range(self.models)}
         self.num_instances_log["time"] = []
@@ -143,47 +157,22 @@ class MilpGlobalArbiter(GlobalArbiter):
                     current_allocation_transposed[i][j][k] = current_allocation[j][i][k]
         current_allocation = current_allocation_transposed
         
-        # get forecast for 1 hour head
-        tokens_forecast = {}
+        # §6.3: đỉnh dự báo ARIMA (TPM) trong cả giờ tới + β = 10% tải NIW nhận được trong giờ trước
+        region_peak = [[0.0] * self.regions for _ in range(self.models)]
+        series = [[] for _ in range(self.models)]
         for region_id, region_router in self.region_routers.items():
-            cur_region = [[0] for _ in range(self.models)]
             for model_name in region_router.model_endpoint_routers.keys():
+                i = self.model_to_idx_mapping[model_name]
                 df = self.forecast_df[region_id][model_name]
-                df = df.loc[df["Time"] <= cur_time + 60 * 60]
-                df = df.loc[df["Time"] >= cur_time + 20 * 60]
-                if len(df["Predicted"]) > 0:
-                    cur_region[self.model_to_idx_mapping[model_name]][0] += df["Predicted"].max()
-                    logging.info(f"max predicted {region_id} {model_name}: {df['Predicted'].max()}")
-            tokens_forecast[region_id] = cur_region
-        # add dev demand from 12hours ago
-        for region_id, region_router in self.region_routers.items():
-            cur_region = [[0] for _ in range(self.models)]
-            for model_name in region_router.model_endpoint_routers.keys():
-                df = self.dev_df[region_id][model_name]
-                if cur_time < 3600:
-                    df = df.loc[df["arrival_timestamp"] <= 3600]
-                else:
-                    df = df.loc[df["arrival_timestamp"] <= cur_time]
-                    df = df.loc[df["arrival_timestamp"] >= cur_time - 60 * 60]
-                if len(df["prompt_size"]) > 0:
-                    tokens_forecast[region_id][self.model_to_idx_mapping[model_name]][0] += 0.1 * df["prompt_size"].max()
-                    logging.info(f"dev sum {region_id} {model_name}: {0.1 * df['prompt_size'].max()}")
-        logging.info(tokens_forecast)
-        tokens_forecast_final = [[[0] for _ in range(self.regions)] for _ in range(self.models)]
-        for i in range(self.models):
-            for j in range(self.regions):
-                tokens_forecast_final[i][j][0] = tokens_forecast[j][i][0]
-
-        # tokens_forecast = [tokens_forecast[k] for k in sorted(tokens_forecast.keys())]
-        # tokens_forecast_transpose = [[[0] for _ in range(self.regions)] for __ in range(self.models)]
-        # for i in range(self.models):
-        #     for j in range(self.regions):
-        #         tokens_forecast_transpose[i][j][0] = tokens_forecast[j][i][0]
-        #         if tokens_forecast_transpose[i][j][0] == None:
-        #             tokens_forecast_transpose[i][j][0] = 0
-        # tokens_forecast = tokens_forecast_transpose
-        logging.info(f"Tokens forecast: {tokens_forecast_final}")
-        return self.milp_allocator.get_ilp_allocations(current_allocation, tokens_forecast_final, self.arima_traces)
+                df = df[(df["Time"] >= cur_time) & (df["Time"] < cur_time + 3600)]
+                dev = self.dev_df[region_id][model_name]
+                dev = dev[(dev["arrival_timestamp"] >= cur_time - 3600) & (dev["arrival_timestamp"] < cur_time)]
+                beta = NIW_BUFFER * dev["prompt_size"].sum() / 60
+                region_peak[i][region_id] = (df["Predicted"].max() if len(df) else 0) + beta
+                series[i].append(df.set_index("Time")["Predicted"] + beta)
+        global_peak = [pd.concat(s_, axis=1).fillna(0).sum(axis=1).max() if s_ else 0 for s_ in series]
+        logging.info(f"ILP region peak (TPM): {region_peak}, global peak: {global_peak}")
+        return self.milp_allocator.get_ilp_allocations(current_allocation, region_peak, [float(g) for g in global_peak])
 
     def post_process_ilp(self, ilp_forecast: List[List[List[int]]]) -> List[Tuple[bool, int, int, int, int]]: 
         # (start action?, action time, region, model, gpu)

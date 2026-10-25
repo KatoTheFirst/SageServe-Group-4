@@ -48,6 +48,7 @@ class GlobalRouter(ABC):
             'ttft': [],
             'workload_type': [],
             'utility': [],
+            'sla': [],
             'model_type': []
         }
 
@@ -85,6 +86,7 @@ class GlobalRouter(ABC):
         self.results['ttft'].append(request.metrics.TTFT)
         self.results['workload_type'].append(request.workload_type)
         self.results['utility'].append(request.utility)
+        self.results['sla'].append(request.sla)
         self.results['model_type'].append(request.model_type)
 
 
@@ -101,6 +103,16 @@ class GlobalRouter(ABC):
         self.last_log_iter = write_itr
         self.reset_results()
 
+def inter_region_delay():
+    """§7.1: chuyển request sang vùng khác – 90% trễ ≤ 500 ms, dưới 2% tới 2,5 s (dạng phân phối là giả định)."""
+    u = random.random()
+    if u < 0.90:
+        return random.uniform(0.0, 0.5)
+    if u < 0.98:
+        return random.uniform(0.5, 1.0)
+    return random.uniform(1.0, 2.5)
+
+
 class ProbabilisticRouter(GlobalRouter):
     """
     Forwards request to the appropriate scheduler without any overheads.
@@ -109,6 +121,7 @@ class ProbabilisticRouter(GlobalRouter):
         # TODO: revisit global routing logic
         region_priority = request.region_priority
         assert len(region_priority) == 3, "Request has invalid region priority"
+        region_priority = [c for c in region_priority if int(c) in self.region_routers]  # bỏ vùng không có trong cấu hình (vd. 1 vùng)
         for choice in region_priority:
             if request.model_type in self.region_routers[int(choice)].model_endpoint_routers and \
                 self.region_clusters[int(choice)].get_memory(request.model_type) / self.region_clusters[int(choice)].get_max_memory(request.model_type) < 0.7:
@@ -119,6 +132,7 @@ class ProbabilisticRouter(GlobalRouter):
     def _select_first_priority_region(self, request) -> int:
         region_priority = request.region_priority
         assert len(region_priority) == 3, "Request has invalid region priority"
+        region_priority = [c for c in region_priority if int(c) in self.region_routers]  # bỏ vùng không có trong cấu hình (vd. 1 vùng)
         for choice in region_priority:
             if request.model_type in self.region_routers[int(choice)].model_endpoint_routers:
                 return choice

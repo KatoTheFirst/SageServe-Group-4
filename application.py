@@ -44,6 +44,8 @@ class Application():
         # orchestration
         if instances is None:
             self.instances = []
+        # instance đang lấy lại spot / khởi động (chưa vào phục vụ) – để arbiter không xếp trùng vào cùng deployment
+        self.pending_instances = 0
         self.cluster = cluster
         self.region = region
         self.scheduler = scheduler

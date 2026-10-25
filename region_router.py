@@ -128,7 +128,8 @@ class ChironRegionRouter(RegionRouter):
         model_router = self.model_endpoint_routers[request.model_type]
         if model_router.get_memory() / model_router.get_max_memory() > 0.7:
             # print("routing to mixed", request.model_type)
-            model_router = self.model_endpoint_routers[request.model_type[0]] # remove _d or _p suffix
+            # nhóm interactive/batch đầy -> nhóm mixed (tên mô hình không có hậu tố -p/-d)
+            model_router = self.model_endpoint_routers[request.model_type.removesuffix("-p").removesuffix("-d")]
         f = lambda model_router=model_router,request=request: \
             model_router.request_arrival(request)
         schedule_event(self.overheads.routing_delay, f)

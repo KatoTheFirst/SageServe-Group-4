@@ -1,8 +1,10 @@
 _target_: allocator.NoOpAllocator
+# Bài báo §2.3, §6.1, §7.1: instance mới cần ~10 phút để tải mô hình; lấy lại spot trung vị ~1 phút (tối đa ~5 phút).
+# Đây là thời gian TRƯỚC KHI instance phục vụ được (overheads của arbiter chỉ là khoảng chờ giữa hai lần co giãn).
 overheads:
-  spin_up: 0
+  spin_up: 600
   spin_down: 0
-  reclaim_spot: 0
+  reclaim_spot: 60
 instance_overheads:
   run: 0
   preempt: 0

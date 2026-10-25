@@ -1,0 +1,14 @@
+# T19: cấu hình đơn giản 1 vùng, 1 mô hình (dùng với traces/servegen_dev_1region_llama70b.csv)
+power_budget: 232000
+
+regions:
+- region_id: 0
+  region_name: westus
+  region_cluster: dgx-a100
+  arbiter: basic_arbiter
+  model_endpoints:
+  - model_endpoint_id: 0
+    model_name: llama2-70b
+    model_endpoint_router: round_robin
+    start_state: orca
+    instance_count: 20

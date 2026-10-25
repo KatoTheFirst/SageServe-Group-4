@@ -1,0 +1,13 @@
+model,region,minutes,iw_tokens,niw_requests,mape_hourly_peak_%,window,horizon,unit,hour0,trace_sha256
+bloom-176b,0,1440,274012575.0,1889,25.4,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+bloom-176b,1,1440,227623467.0,9264,28.6,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+bloom-176b,2,1440,1094949964.0,27730,20.5,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+llama2-70b,0,1440,307423292.0,2028,23.4,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+llama2-70b,1,1440,368547665.0,10156,28.4,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+llama2-70b,2,1440,316853198.0,26699,22.6,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+llama3.1-8b,0,1440,57519406.0,1297,41.4,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+llama3.1-8b,1,1440,55540256.0,10695,43.7,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+llama3.1-8b,2,1440,89592129.0,26891,37.8,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+llama3.2-3b,0,1440,4467730.0,2342,72.9,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+llama3.2-3b,1,1440,4457787.0,12436,76.9,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3
+llama3.2-3b,2,1440,5705886.0,24105,73.9,60,60,TPM,warmup = mean of hour 0,ecf9c8b88ed38ce3

@@ -1,0 +1,30 @@
+# F16 (Phụ lục A): giống us1-4models.yaml nhưng cụm H100. Khi bật LT cần θ của H100: chạy Reactive rồi
+#   python analyze_capacity.py <kết quả> <trace> data/theta_tps_h100.csv  và đặt global_arbiter.theta_file=data/theta_tps_h100.csv
+# Thí nghiệm §4 bài báo: 1 vùng (westus) x 4 mô hình, 20 instance/mô hình, 8xA100/instance
+power_budget: 232000
+regions:
+- region_id: 0
+  region_name: westus
+  region_cluster: dgx-h100
+  arbiter: basic_arbiter
+  model_endpoints:
+  - model_endpoint_id: 0
+    model_name: llama2-70b
+    model_endpoint_router: round_robin
+    start_state: orca
+    instance_count: 20
+  - model_endpoint_id: 1
+    model_name: bloom-176b
+    model_endpoint_router: round_robin
+    start_state: orca
+    instance_count: 20
+  - model_endpoint_id: 2
+    model_name: llama3.1-8b
+    model_endpoint_router: round_robin
+    start_state: orca
+    instance_count: 20
+  - model_endpoint_id: 3
+    model_name: llama3.2-3b
+    model_endpoint_router: round_robin
+    start_state: orca
+    instance_count: 20

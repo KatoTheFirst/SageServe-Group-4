@@ -15,6 +15,8 @@ from application_repo import ApplicationRepo
 import application_repo
 from arbiter import Arbiter
 import arbiter_repo
+import simulator as simulator_module
+import instance as instance_module
 from controller import Controller
 from hardware_repo import HardwareRepo
 from model_endpoint_repo import ModelEndpointRepo
@@ -144,6 +146,8 @@ def init_regions(cfg, controller):
     applications = []
     regions = {}
     region_clusters = {}
+    simulator_module.NIW_SIGNAL_GRANULARITY = cfg.feed_async_granularity
+    instance_module.QUEUE_POLICY = cfg.queue_policy
     # print(cfg.controller.regions)
     for region_cfg in cfg.controller.regions:
         # print(region_cfg)
@@ -151,10 +155,7 @@ def init_regions(cfg, controller):
         region:Region = Region.from_config(region_cfg,
                                     controller=controller, region_cluster=region_cluster)
         region_cluster.set_region(region)
-        if region_cfg.arbiter == "global_arbiter_ARIMA_checking":
-            arbiter:Arbiter = arbiter_repo.get_arbiter(region_cfg.arbiter, cluster=region_cluster, scaling_threshhold=cfg.arima_checking_scaling_threshhold)
-        else:
-            arbiter:Arbiter = arbiter_repo.get_arbiter(region_cfg.arbiter, cluster=region_cluster)
+        arbiter:Arbiter = arbiter_repo.get_arbiter(region_cfg.arbiter, cluster=region_cluster)
         region_cluster.set_arbiter(arbiter)
         for model_endpoint_cfg in region_cfg.model_endpoints:
             # model_cluster = ModelCluster.from_config(model_cluster_cfg, region=region)

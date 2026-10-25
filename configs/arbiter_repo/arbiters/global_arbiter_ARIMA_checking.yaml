@@ -1,5 +1,7 @@
 _target_: arbiter.GlobalArbiterARIMAChecking
-overheads: 
-  spin_up: 155
+# Khoảng chờ thêm sau mỗi lần co giãn: bài báo chỉ có cooldown 15 s (scaling_interval, áp ở router); thời gian
+# instance thật sự vào phục vụ (600 s / ~60 s) nằm ở allocator (configs/orchestrator_repo/allocators/noop.yaml).
+overheads:
+  spin_up: 0
   spin_down: 0
-  reclaim_spot: 65
+  reclaim_spot: 0

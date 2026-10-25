@@ -2,5 +2,6 @@ defaults:
   - overheads: zero
   - _self_
 
-no_reroute: True
+# §5/§6: tải vượt khả năng của vùng được chuyển sang vùng khác
+no_reroute: False
 _target_: global_router.ProbabilisticRouter

@@ -16,6 +16,10 @@ sim = None
 
 async_count = 0
 fed_count = 0
+# Queue Manager NIW (bài báo §6.1-6.2): endpoint báo định kỳ khi bộ nhớ < 60%.
+# Bài báo không nêu chu kỳ báo -> chọn 1 s. Số request mỗi lần thả lấy từ feed_async_granularity.
+NIW_SIGNAL_INTERVAL = 1
+NIW_SIGNAL_GRANULARITY = 1
 class Event:
     """
     Events are scheduled actions in the simulator.
@@ -131,10 +135,21 @@ class TraceSimulator(Simulator):
             return
         sim.schedule(0, lambda request=request: sim.global_router.request_arrival(request))
 
+    def niw_signal_tick(self):
+        """
+        Bài báo §6.1: mỗi endpoint định kỳ báo Queue Manager khi bộ nhớ < 60% để nhận NIW
+        (kể cả endpoint chưa có request nào, vd. nhóm NIW của Siloed).
+        """
+        for reg in self.regions.values():
+            for mer in reg.region_router.model_endpoint_routers.values():
+                feed_async(reg, mer.model_name, NIW_SIGNAL_GRANULARITY)
+        self.schedule(NIW_SIGNAL_INTERVAL, self.niw_signal_tick)
+
     def run_simulation(self):
         """
         Run the simulation until the end time.
         """
+        self.schedule(NIW_SIGNAL_INTERVAL, self.niw_signal_tick)
         log_time = 0
         mem_time = 0
         load_trace_time = 0
@@ -216,7 +231,9 @@ class TraceSimulator(Simulator):
         Load requests from the trace as arrival events.
         """
         for request in requests:
-            if request.workload_type == "prod" and request.batch_id == -1:
+            # Siloed (§4): NIW có nhóm instance riêng (-d) nên đi thẳng tới đó, không qua Queue Manager
+            if (request.workload_type == "prod" and request.batch_id == -1) or \
+                    (self.trace.siloed and request.workload_type == "dev"):
                 self.schedule_request_arrival(request.arrival_timestamp - self.time,
                           lambda self=self,request=request: self.global_router.request_arrival(request))
             elif request.workload_type == "prod" and request.batch_id != -1:
@@ -368,11 +385,14 @@ def feed_async(region, model_name, feed_async_granularity):
     mem_util = region.region_cluster.get_memory(model_name) / region.region_cluster.get_max_memory(model_name)
     if mem_util > 0.6:
         return
-    if mem_util > 0.5:
-        for _ in range(feed_async_granularity):
-            feed_async_helper(region, model_name)
-    for _ in range(feed_async_granularity):
+    n = 2 if mem_util < 0.5 else 1  # bài báo §6.2: < 60% đưa 1 NIW, < 50% đưa 2
+    for _ in range(n * feed_async_granularity):
         feed_async_helper(region, model_name)
+
+def _niw_ready(queue):
+    # Trace được đọc trước nhiều request; NIW chỉ được thả khi đồng hồ mô phỏng đã tới thời điểm gửi.
+    return len(queue) > 0 and queue[0].arrival_timestamp <= clock()
+
 
 def feed_async_helper(region, model_name):
     """
@@ -392,12 +412,12 @@ def feed_async_helper(region, model_name):
     #     num_async = 2
     # # print(region.region_name, model_name, sim.opp.keys())
     # for _ in range(num_async):
-    if model_name in sim.batch_prod and region.region_id in sim.batch_prod[model_name]\
-            and len(sim.batch_prod[model_name][region.region_id]) > 0:
-        request = sim.batch_prod[model_name][region.region_id].pop(0)
-    elif model_name in sim.opp and region.region_id in sim.opp[model_name]\
-            and len(sim.opp[model_name][region.region_id]) > 0:
-        request = sim.opp[model_name][region.region_id].pop(0)
+    batch_prod = sim.batch_prod.get(model_name, {}).get(region.region_id, [])
+    opp = sim.opp.get(model_name, {}).get(region.region_id, [])
+    if _niw_ready(batch_prod):
+        request = batch_prod.pop(0)
+    elif _niw_ready(opp):
+        request = opp.pop(0)
     else:
         # print("Async Queue Empty", region.region_name, model_name)
         # for m in sim.opp.keys():

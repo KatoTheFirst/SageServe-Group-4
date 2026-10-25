@@ -1,9 +1,10 @@
+# Bài báo §4, §7.1: mỗi instance 8x A100, chọn instance theo số token còn lại (token-JSQ, §6.1)
 model_architecture: bloom-176b
 model_size: bloom-176b-fp16
 allocator: noop
-scheduler: jsq
-processor_affinity: h100
-processor_count: 16
+scheduler: token_jsq
+processor_affinity: a100
+processor_count: 8
 overheads: {}
 debug: default.debug
 _target_: application.Application

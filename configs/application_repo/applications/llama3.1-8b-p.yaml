@@ -1,0 +1,10 @@
+# Bài báo §4, §7.1: mỗi instance 8x A100, chọn instance theo số token còn lại (token-JSQ, §6.1)
+model_architecture: C
+model_size: C
+allocator: noop
+scheduler: token_jsq
+processor_affinity: a100
+processor_count: 8
+overheads: {}
+debug: default.debug
+_target_: application.Application

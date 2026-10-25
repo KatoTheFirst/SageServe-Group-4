@@ -1,6 +1,7 @@
 import logging
 
 from abc import ABC, abstractmethod
+from collections import deque
 import random
 
 from request import Request
@@ -118,19 +119,30 @@ class RoundRobin(ModelEndpointRouter):
         super().__init__(region, model_name, start_state, scaling_interval, scaling_level, short_term_scaling, overheads)
         self.idx = -1
         self.current_request = None
+        self.recent_tokens = deque()     # (thời điểm, prompt_size) trong 60 s gần nhất – LT-UA so với ARIMA (§6.4)
+        self.recent_token_sum = 0
+
+    def tokens_last_minute(self):
+        while self.recent_tokens and self.recent_tokens[0][0] < clock() - 60:
+            self.recent_token_sum -= self.recent_tokens.popleft()[1]
+        return self.recent_token_sum
     """
     Forwards request to the appropriate scheduler without any overheads.
     """
     def route(self, request):
         # start_time = time()
+        self.recent_tokens.append((clock(), request.prompt_size))
+        self.recent_token_sum += request.prompt_size
         if self.short_term_scaling and clock() > self.last_scale_timestamp + self.scaling_interval:
             if self.short_term_scaling:
                 self.current_request = request
                 self.region.region_cluster.arbiter.scale(self)
                 self.last_scale_timestamp = clock()
 
-        # app_id = min(self.applications, key=lambda a: a.get_memory() / a.get_max_memory()).application_id
-        app_id = min(self.applications, key=lambda a: min([i.pending_tokens for i in a.instances])).application_id
+        # bài báo §6.1: deployment có bộ nhớ hiệu dụng thấp nhất; scheduler chọn instance ít token chờ nhất
+        # deployment chỉ có instance đang lấy lại / khởi động (chưa phục vụ) thì chưa nhận request
+        serving = [a for a in self.applications if a.get_max_memory() > 0]
+        app_id = min(serving, key=lambda a: a.get_memory() / a.get_max_memory()).application_id
         scheduler = self.schedulers[list(self.schedulers.keys())[app_id]]
 
 

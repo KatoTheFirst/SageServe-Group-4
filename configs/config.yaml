@@ -30,13 +30,13 @@ seed: 0
 feed_async: True
 feed_async_granularity: 1
 scaling_level: 2 # 0 for off, 1 for spot, 2 for inter model scaling
-scaling_interval: -1 # -1 for off, otherwise +ve values in seconds
+scaling_interval: 15 # bài báo §4, §7.1: cooldown 15 s giữa các lần co giãn
 short_term_scaling: True
 long_term_scaling: False
 print_class_stack: False
-arima_checking_scaling_threshhold: 5
 
 siloed: False
+queue_policy: fcfs   # §6.5: fcfs | edf | pf | dpa (hàng đợi cục bộ của instance)
 
 choices: ${hydra:runtime.choices}
 # output_dir: results/${seed}/${start_state.state_type}/${trace.filename}/${cluster.servers.0.count}_${cluster.servers.1.count}/${applications.0.model_architecture}/${applications.0.scheduler}

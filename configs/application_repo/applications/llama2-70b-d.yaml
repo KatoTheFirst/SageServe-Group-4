@@ -1,7 +1,8 @@
+# Bài báo §4, §7.1: mỗi instance 8x A100, chọn instance theo số token còn lại (token-JSQ, §6.1)
 model_architecture: llama2-70b
 model_size: llama2-70b-fp16
 allocator: noop
-scheduler: jsq
+scheduler: token_jsq
 processor_affinity: a100
 processor_count: 8
 overheads: {}

@@ -1,4 +1,6 @@
 import logging
+import math
+import random
 
 from abc import ABC
 from itertools import count
@@ -7,6 +9,20 @@ import model_repo
 
 from instance import Instance
 from simulator import clock, schedule_event, cancel_event, reschedule_event
+
+RECLAIM_SPOT_MAX = 300      # bài báo §6.1: lấy lại spot trung vị ~1 phút, tối đa ~5 phút
+RECLAIM_SPOT_SIGMA = math.log(5) / 2.326   # log-normal: P99 = 5 x trung vị = 300 s
+
+
+def log_scaleup_waste(model_name, kind, seconds, region):
+    # §7.2.4: GPU đã cấp nhưng instance chưa phục vụ được trong lúc tăng máy; analyze_waste.py cộng các dòng này,
+    # check_paper_rules.py dùng làm thời điểm quyết định tăng máy
+    logging.info(f"SCALEUP_WASTE,{clock()},{model_name},{kind},{seconds},{region}")
+
+
+def reclaim_spot_delay(median):
+    # bài báo chỉ cho trung vị và cực đại; dạng log-normal là giả định (random đã seed trong run.py)
+    return min(random.lognormvariate(math.log(median), RECLAIM_SPOT_SIGMA), RECLAIM_SPOT_MAX) if median > 0 else 0
 
 
 class Allocator(ABC):
@@ -68,7 +84,13 @@ class Allocator(ABC):
         if pre_start is True:
             finish_spin_up()
         else:
-            schedule_event(self.overheads.spin_up, finish_spin_up)
+            log_scaleup_waste(self.application.router.model_name, "spin_up", self.overheads.spin_up,
+                              self.application.region.region_name)
+            self.application.pending_instances += 1
+            def finish_pending(alloc=self, instance=instance):
+                alloc.application.pending_instances -= 1
+                alloc.finish_spin_up_instance(instance)
+            schedule_event(self.overheads.spin_up, finish_pending)
 
     def finish_spin_up_instance(self, instance):
         """
@@ -115,7 +137,10 @@ class Allocator(ABC):
         instance.spot = False
         # logging.debug("Starting reclaiming " + str(self.overheads.reclaim_spot))
         f = lambda alloc=self, instance=instance: alloc.finish_reclaim_spot_instance(instance)
-        schedule_event(self.overheads.reclaim_spot, f)
+        delay = reclaim_spot_delay(self.overheads.reclaim_spot)
+        log_scaleup_waste(model_name, "reclaim_spot", delay, self.application.region.region_name)
+        self.application.pending_instances += 1
+        schedule_event(delay, f)
         return instance
     
     def finish_reclaim_spot_instance(self, instance):
@@ -123,6 +148,7 @@ class Allocator(ABC):
         Finish reclaiming a spot instance.
         """
         # logging.debug("Finishing reclaiming")
+        self.application.pending_instances -= 1
         self.application.add_instance(instance)
         instance.application = self.application
         return instance

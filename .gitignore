@@ -5,3 +5,16 @@ traces/*
 *.lp
 ilp_outputs/*
 figures/*
+.claude/settings.local.json
+!traces/SHA256SUMS
+# dự báo ARIMA của các trace đang dùng (file nhỏ) được commit; trace CSV lớn nằm ở GitHub Release (fetch_traces.py)
+!traces/forecasts/
+traces/forecasts/*
+!traces/forecasts/composed_day_3regions/
+!traces/forecasts/composed_day_3regions_12to15/
+!traces/forecasts/composed_day_3regions_5models/
+!traces/forecasts/composed_day_3regions_burst8/
+!traces/forecasts/composed_day_3regions_niw1/
+!traces/forecasts/composed_day_3regions_niw9/
+!traces/forecasts/composed_week_3regions/
+!traces/forecasts/fork_day_3regions/
