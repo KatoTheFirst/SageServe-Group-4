@@ -74,6 +74,9 @@ khi ổ chứa repo không đủ chỗ: `RESULTS_ROOT=D:/SageServe_results bash 
 | `niw_ratio` | Phụ lục A | như `lt` | xu hướng tiết kiệm giữ nguyên khi đổi IW:NIW | ✔ 9:1: −8,3 / −5,2 / −4,9%; 1:1: −11,9 / −2,3 / −2,0% |
 | – | Phụ lục B, Fig. 17 | `python compare_forecasters.py traces/composed_day_3regions.csv` | MA nhanh nhưng kém; TVAR, HMM chính xác hơn ARIMA nhưng chậm hơn nhiều | ✔ MA 27%, ARIMA 25%, TVAR 24,5% (~20x chậm), HMM ~4x chậm |
 
+Biểu đồ cho slide: `python plot_slides.py nv1 results/s4/unified results/s4/siloed --out <tiền tố>` (§4) và
+`python plot_slides.py nv2 <bài online> <bài offline> --out <tiền tố>` (Load Predictor).
+
 `python check_paper_rules.py <kết quả> <trace> [--siloed]` kiểm tra các quy tắc vận hành (ngưỡng 70/30, cooldown 15 s,
 tối đa instance, NIW hoàn thành) trên kết quả bất kỳ.
 
@@ -85,6 +88,7 @@ tối đa instance, NIW hoàn thành) trên kết quả bất kỳ.
 | NIW | Queue Manager: < 60% đưa 1, < 50% đưa 2; NIW sau IW, ngang IW sau 10 h; Siloed: NIW vào thẳng nhóm `-d` | tín hiệu mỗi 1 s |
 | ILP §5 | ràng buộc từng vùng ≥ ε·đỉnh, toàn cục ≥ đỉnh tổng, δ ≥ −n; min α·δ + σ·max(δ,0); đỉnh dự báo cả giờ tới; β = 10% tải NIW giờ trước | ε = 0,9; σ = α·600/3600; θ = TPS 1 instance ở bộ nhớ 60–80% trên bài Reactive của trace chính (`analyze_capacity.py`) |
 | Dự báo | ARIMA cửa sổ 60 phút, TPM, dự báo 60 phút, mỗi giờ (nhân quả) | giờ 0 = trung bình giờ 0 |
+| Load Predictor | `global_arbiter.forecast_mode=online`: mỗi giờ huấn luyện ARIMA-60 trên TPM quan sát trong simulator (trùng `offline` – lệch ≤ 1e-6); cả hai ghi `forecast_log.csv` (đỉnh/trung bình dự báo vs thực tế theo giờ). Cửa sổ dự báo canh theo phút tròn (trước 26/10 lấy nhầm phút đầu giờ sau → kết quả LT cũ hơi cấp thừa máy khi tải tăng) | — |
 | LT-I / LT-U / LT-UA | §6.4; LT-UA: 20 phút cuối giờ, tải ≥ 5x dự báo → tăng, ≤ 0,5x → giảm | — |
 | Định tuyến | chuyển vùng khi quá tải; trễ chuyển vùng 90% ≤ 500 ms, < 2% tới 2,5 s | dạng phân phối |
 | Bộ lập lịch §6.5 | FCFS / EDF / PF / DPA (`queue_policy`) | τ_p = 1 s, τ_n = 5 s |

@@ -12,3 +12,6 @@ epsilon: 0.9
 gpu_cost: 10          # α: chi phí 1 VM / giờ (chỉ cần tương đối)
 startup_time: 600     # σ = α x 600 s / 3600 (§6.1: khởi động instance ~10 phút)
 theta_file: data/theta_tps.csv
+# Load Predictor (§6.3): offline = dự báo nhân quả tính trước (traces/forecasts); online = huấn luyện ARIMA-60 mỗi giờ
+# trên tải quan sát trong simulator. Cả hai ghi forecast_log.csv (dự báo vs thực tế theo giờ).
+forecast_mode: offline

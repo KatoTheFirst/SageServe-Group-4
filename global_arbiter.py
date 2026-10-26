@@ -2,7 +2,9 @@ import logging
 
 from abc import ABC
 from typing import List, Tuple
+import numpy as np
 import pandas as pd
+from collections import defaultdict
 from hydra.utils import to_absolute_path
 
 from application import Application
@@ -12,6 +14,7 @@ from simulator import clock, schedule_event, cancel_event, reschedule_event
 import start_state_repo
 import utils
 from long_term_allocation import MilpLongTermAllocation
+from generate_causal_arima_forecasts import WINDOW, HORIZON, fit_forecast
 
 
 class GlobalArbiter(ABC):
@@ -49,8 +52,15 @@ class MilpGlobalArbiter(GlobalArbiter):
                  epsilon=1.0,
                  gpu_cost=10,
                  startup_time=600,
-                 theta_file="data/theta_tps.csv"):
+                 theta_file="data/theta_tps.csv",
+                 forecast_mode="offline"):
         super().__init__(long_term_scaling_interval, max_time)
+        # Load Predictor (§6.3): "offline" = dự báo nhân quả đọc từ file; "online" = mỗi giờ huấn luyện ARIMA-60 trên
+        # TPM quan sát được trong simulator (giờ đầu chưa có lịch sử -> dùng file)
+        assert forecast_mode in ("offline", "online"), forecast_mode
+        self.forecast_mode = forecast_mode
+        self.observed = defaultdict(lambda: defaultdict(float))     # (vùng, mô hình) -> phút -> token IW
+        self.forecast_log = []
         self.epsilon = epsilon
         self.gpu_cost = gpu_cost
         self.startup_time = startup_time
@@ -72,6 +82,35 @@ class MilpGlobalArbiter(GlobalArbiter):
 
     def save_results(self):
         utils.save_dict_as_csv(self.num_instances_log, "global_ariber_logs.csv")
+        # log dự báo vs thực tế theo giờ (thực tế lấy từ token IW quan sát được trong giờ đó)
+        rows = []
+        for r in self.forecast_log:
+            obs = self.observed[(r["region"], r["model"])]
+            actual = np.array([obs.get(m, 0.0) for m in range(r["hour"] * 60, (r["hour"] + 1) * 60)])
+            rows.append({**r, "actual_peak_tpm": actual.max(), "actual_mean_tpm": actual.mean()})
+        if rows:
+            utils.save_dict_as_csv({k: [x[k] for x in rows] for k in rows[0]}, "forecast_log.csv")
+
+    def observe(self, region_id, model_name, tokens):
+        """Load Predictor: cộng token đầu vào của request IW theo phút (gọi từ global router)."""
+        self.observed[(region_id, model_name)][int(clock() // 60)] += tokens
+
+    def predict_hour(self, region_id, model_name, cur_time):
+        """Dự báo TPM 60 phút tới (DataFrame Time, Predicted)."""
+        # canh theo phút tròn: ILP chạy ở request đầu tiên sau mốc giờ (vd. 3600,3 s); lọc theo cur_time sẽ bỏ phút đầu
+        # của giờ này và lấy nhầm phút đầu giờ sau (dự báo theo phút, mỗi giờ một lần huấn luyện)
+        start = int(cur_time // 60)
+        df = self.forecast_df[region_id][model_name]
+        df = df[(df["Time"] >= 60 * start) & (df["Time"] < 60 * start + 3600)]
+        if self.forecast_mode == "online" and cur_time >= WINDOW * 60:
+            obs = self.observed[(region_id, model_name)]
+            train = np.array([obs.get(m, 0.0) for m in range(start - WINDOW, start)])
+            pred = fit_forecast(train)[0]
+            df = pd.DataFrame({"Time": [60 * (start + m) for m in range(HORIZON)], "Predicted": pred})
+            arbiter = self.region_clusters[region_id].arbiter
+            if hasattr(arbiter, "set_arima_forecast"):      # LT-UA so tải thực với dự báo vừa cập nhật
+                arbiter.set_arima_forecast(model_name, df)
+        return df
     
     def load_predicted_traces(self) -> None:
         self.regions = len(self.region_clusters)
@@ -163,8 +202,10 @@ class MilpGlobalArbiter(GlobalArbiter):
         for region_id, region_router in self.region_routers.items():
             for model_name in region_router.model_endpoint_routers.keys():
                 i = self.model_to_idx_mapping[model_name]
-                df = self.forecast_df[region_id][model_name]
-                df = df[(df["Time"] >= cur_time) & (df["Time"] < cur_time + 3600)]
+                df = self.predict_hour(region_id, model_name, cur_time)
+                self.forecast_log.append({"hour": int(cur_time // 3600), "region": region_id, "model": model_name,
+                                          "mode": self.forecast_mode, "pred_peak_tpm": df["Predicted"].max() if len(df) else 0,
+                                          "pred_mean_tpm": df["Predicted"].mean() if len(df) else 0})
                 dev = self.dev_df[region_id][model_name]
                 dev = dev[(dev["arrival_timestamp"] >= cur_time - 3600) & (dev["arrival_timestamp"] < cur_time)]
                 beta = NIW_BUFFER * dev["prompt_size"].sum() / 60

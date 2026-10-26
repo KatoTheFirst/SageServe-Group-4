@@ -101,6 +101,8 @@ class GlobalRouter(ABC):
     def save_results_intermediate(self, write_itr):
         utils.save_dict_as_csv(self.results, f"global_router/{write_itr}.csv")
         self.last_log_iter = write_itr
+        if self.long_term_scaling:      # simulator không gọi save_results() cuối bài -> ghi log global arbiter mỗi đợt
+            self.global_arbiter.save_results()
         self.reset_results()
 
 def inter_region_delay():
@@ -141,6 +143,8 @@ class ProbabilisticRouter(GlobalRouter):
     def route(self, request: Request):
         if self.long_term_scaling and self.global_arbiter.scaling_interval_reached():
             self.global_arbiter.scale()
+        if self.long_term_scaling and request.workload_type == "prod":
+            self.global_arbiter.observe(int(request.region_priority[0]), request.model_type, request.prompt_size)
         if clock() > self.last_reported_allocation_time + self.allocation_interval:
             self.last_reported_allocation_time = clock()
         if self.long_term_scaling and self.no_reroute:
