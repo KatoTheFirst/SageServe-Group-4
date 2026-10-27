@@ -154,7 +154,7 @@ class BasicArbiter(Arbiter):
         application.allocator.start_spin_up_instance(instance_cfg=instance_cfg,
                                     processors=processors,
                                     parallelism=parallelism,
-                                    pre_start=True)
+                                    pre_start=False)     # khởi động mất overheads.spin_up của allocator (10 phút, §7.1)
 
     def scale_up_from_spot_other(self, model_endpoint, processors):
         if size(model_endpoint.applications[-1]) == 3:

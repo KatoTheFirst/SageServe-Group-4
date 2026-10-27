@@ -159,9 +159,9 @@ class MilpGlobalArbiter(GlobalArbiter):
         for region_id, region_router in self.region_routers.items():
             cur_region = [[0] for _ in range(self.models)]
             for model_name in region_router.model_endpoint_routers.keys():
-                val = region_router.model_endpoint_routers[model_name].total_instances
-                if val == None:
-                    val = 0
+                # tính cả instance đang lấy lại spot / khởi động (như arbiter.size), nếu không ILP giao thêm máy trùng
+                val = sum(len(app.instances) + app.pending_instances
+                          for app in region_router.model_endpoint_routers[model_name].applications)
                 cur_region[self.model_to_idx_mapping[model_name]][0] += val
             for model_name in region_router.model_endpoint_routers.keys(): 
                 self.num_instances_log[f"region_{region_id}_model_{self.model_to_idx_mapping[model_name]}"].append(cur_region[self.model_to_idx_mapping[model_name]][0])

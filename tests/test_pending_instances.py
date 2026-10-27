@@ -29,3 +29,14 @@ def test_scale_up_counts_pending():
     except Exception:
         pass      # nhánh tách deployment cần cấu hình thật; điều cần kiểm là KHÔNG lấy thêm vào deployment cũ
     assert calls == []
+
+
+def test_ilp_current_allocation_counts_pending(monkeypatch):
+    # ILP chạy khi một instance còn đang lấy lại spot: phải thấy nó, nếu không giao thêm 1 máy trùng (lt_ua, 26/10)
+    import global_arbiter as G
+    monkeypatch.setattr(G, "clock", lambda: 0.0)
+    a = object.__new__(G.MilpGlobalArbiter)
+    a.models, a.model_to_idx_mapping = 1, {"m": 0}
+    a.num_instances_log = {"region_0_model_0": [], "time": []}
+    a.region_routers = {0: NS(model_endpoint_routers={"m": NS(applications=[app(3), app(2, 1)])})}
+    assert a.current_allocations() == [[[6]]]
