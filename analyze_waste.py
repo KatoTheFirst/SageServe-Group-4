@@ -3,18 +3,24 @@ F12 (§7.2.4): GPU-giờ lãng phí khi tăng máy = tổng thời gian GPU đã
 (khởi động 600 s, lấy lại spot ~60 s), cộng từ các dòng SCALEUP_WASTE trong run.log.
 Bài báo: SageServe (LT) giảm ~70% so với Reactive.
 
-Dùng: python analyze_waste.py results/lt_day/reactive results/lt_day/lt_ua ...
+Dùng: python analyze_waste.py results/lt_day/reactive results/lt_day/lt_ua ... --skip_hours 1
 """
+import argparse
 import os
-import sys
 
 import pandas as pd
 
+ap = argparse.ArgumentParser()
+ap.add_argument("runs", nargs="+")
+ap.add_argument("--skip_hours", type=float, default=0, help="Bỏ giai đoạn khởi đầu, giống analyze_s4")
+a = ap.parse_args()
 rows = []
-for run in sys.argv[1:]:
+for run in a.runs:
     for line in open(os.path.join(run, "run.log"), encoding="utf-8", errors="ignore"):
         if "SCALEUP_WASTE," in line:
             t, model, kind, sec = line.strip().split("SCALEUP_WASTE,")[1].split(",")[:4]   # (+ vùng ở bản mới)
+            if float(t) < 3600 * a.skip_hours:
+                continue
             rows.append({"run": os.path.basename(run.rstrip("/\\")), "model": model.removesuffix("-p").removesuffix("-d"),
                          "kind": kind, "hours": float(sec) / 3600})
 d = pd.DataFrame(rows)

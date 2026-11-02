@@ -44,7 +44,7 @@ case $EXP in
       done
     done ;;
   nov2024)    # §7.2.7 "Validation for Nov, 2024 Trace": 4 chiến lược trên trace thứ hai, 3 vùng
-    THETA="global_arbiter.theta_file=data/theta_tps_fork.csv"     # θ đo trên Reactive của chính trace này (request dài hơn)
+    THETA="global_arbiter.theta_file=data/theta_tps_fork.csv"     # θ đo bằng benchmark trên chính trace này (request dài hơn)
     lt_runs fork_day_3regions $ROOT/nov2024 ;;
   scale5)     # §7.2.5 (thay thế): thêm mô hình thứ 5 llama4-sub (profile llama2-70b, luồng thật thứ Tư)
     lt_runs composed_day_3regions_5models $ROOT/scale5 us3-5models ;;
