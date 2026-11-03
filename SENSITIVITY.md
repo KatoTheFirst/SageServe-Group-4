@@ -1,7 +1,7 @@
 # SENSITIVITY – Pha 3
 
 Bản cắt 12–15h của `composed_day_3regions_v2`, A100, θ `data/theta_tps_v2.csv`, bỏ giờ đầu, mỗi lần đổi một yếu tố. Số đầy đủ: `SENSITIVITY.csv`.
-Lệnh: `python experiments/analyze_sensitivity.py D:/SageServe_results/v2/sens --out SENSITIVITY.csv`; biểu đồ: `python experiments/plot_sensitivity.py SENSITIVITY.csv SENSITIVITY.png`.
+Chạy: `python experiments/make_sens_traces.py` (sinh `traces/sens_*.csv`; sha256 sens_flat 9d90fa80…, sens_spike 68846dae…, sens_rate50 7e1316bc…, sens_rate150 13f5f69c…, sens_burst_in d2d3372c…, sens_burst_out 61afbf20…), rồi `PY=<python> bash experiments/run_sens.sh sens` (21 bài, ~3 giờ mô phỏng mỗi bài; biến `SAGE_SPIN_UP`, `SAGE_WAIT`, `SAGE_BETA` đặt trong script). Phân tích: `python experiments/analyze_sensitivity.py D:/SageServe_results/v2/sens --out SENSITIVITY.csv`; biểu đồ: `python experiments/plot_sensitivity.py SENSITIVITY.csv SENSITIVITY.png`.
 
 ![Độ nhạy](SENSITIVITY.png)
 
@@ -31,7 +31,7 @@ Lệnh: `python experiments/analyze_sensitivity.py D:/SageServe_results/v2/sens 
 
 ## Lệch còn lại
 
-**Burst (`D:/SageServe_results/v2/sens2`, lệnh `python experiments/analyze_burst_cut.py D:/SageServe_results/v2/sens2`).** Một burst ×8 dài 10 phút:
+**Burst (`D:/SageServe_results/v2/sens2`, chạy `PY=<python> bash experiments/run_sens.sh sens2` (10 bài, gồm `SAGE_NO_DOWN=1` cho LT-UA tắt luật giảm), phân tích `python experiments/analyze_burst_cut.py D:/SageServe_results/v2/sens2`).** Một burst ×8 dài 10 phút:
 
 | Vị trí | Chiến lược | IH | Vi phạm Llama-2 | Vi phạm Bloom | Bộ nhớ Llama-2 hồi về < 70% |
 |---|---|---:|---:|---:|---:|

@@ -2,12 +2,14 @@
 import os
 import sys
 
+import numpy as np
 import pandas as pd
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "experiments"))
 import analyze_oracle
 import compare_runs
+import make_sens_traces
 import analyze_week
 import reactive_behavior
 
@@ -76,6 +78,26 @@ def test_reactive_behavior_table(tmp_path):
     assert w["lãng phí (instance-giờ)"] == pytest.approx(660 / 3600)
     assert t.loc["tổng", "lãng phí (GPU-giờ, x8)"] == pytest.approx(8 * 660 / 3600)
     assert reactive_behavior.flaps([10], [20, 30]) == 1                 # 1–1: một scale-in không ghép hai lần
+
+
+def test_make_sens_traces(tmp_path):
+    n = 200                                                             # 100 IW (prod) + 100 NIW (dev), rải đều 3 giờ
+    d = pd.DataFrame({"scenario": ["IW-F", "NIW"] * (n // 2), "workload_type": ["prod", "dev"] * (n // 2),
+                      "arrival_timestamp": np.round(np.linspace(0, 10799, n), 3), "prompt_size": 1})
+    out = str(tmp_path)
+    make_sens_traces.sens(d.copy(), out)
+    make_sens_traces.burst(d.copy(), out)
+    r = {k: pd.read_csv(f"{out}/sens_{k}.csv") for k in ("flat", "spike", "rate50", "rate150", "burst_in", "burst_out")}
+    assert [len(r[k]) for k in ("flat", "spike", "rate50", "rate150")] == [n, n, n // 2, n + n // 2]
+    hour = lambda x: (x.arrival_timestamp // 3600).value_counts().sort_index().tolist()
+    assert hour(r["flat"]) == hour(d) == hour(r["spike"])               # đổi phút đến, giữ số request mỗi giờ
+    niw = lambda x: sorted(x[x.scenario == "NIW"].arrival_timestamp)
+    assert niw(r["flat"]) == niw(d)                                     # NIW không bị đổi
+    w_in = ((d.workload_type == "prod") & d.arrival_timestamp.between(6000, 6600, inclusive="left")).sum()
+    assert len(r["burst_in"]) == n + 7 * w_in                           # thêm 7 bản sao IW của 10 phút burst
+    assert r["burst_in"].arrival_timestamp.is_monotonic_increasing and (r["burst_in"].request_id == range(len(r["burst_in"]))).all()
+    make_sens_traces.sens(d.copy(), out)                                # tất định: chạy lại cho đúng file cũ
+    assert pd.read_csv(f"{out}/sens_spike.csv").equals(r["spike"])
 
 
 def test_compare_runs_config_includes_sage_env(tmp_path):
