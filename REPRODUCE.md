@@ -16,7 +16,19 @@ Windows: đặt `PYTHONIOENCODING=utf-8`. Runner dùng biến `PY` (mặc địn
 
 ## 2. Trace
 
-**Từ 3/11/2026, mọi thí nghiệm dùng trace v2** (`sha256sum -c traces/SHA256SUMS_v2`). Trace v2 sinh từ v1 bằng `make_trace_v2.py`; mỗi cờ sửa đúng một cổng trượt của `TRACE_SPEC.md` (D2, D3, D8 trong `DECISIONS.md`). Chấm trace: `python qualify_trace.py <trace> --role t7|t11 ...`.
+**Từ 3/11/2026, mọi thí nghiệm dùng trace v2** (`sha256sum -c traces/SHA256SUMS_v2`).
+
+**Lấy trace v2 (khuyên dùng):** GitHub Release `traces-v2` có 12 trace `.csv.gz` và `forecasts_v2.tar.gz` (dự báo ARIMA, oracle, oracle_smooth). `fetch_traces.py` chỉ tải v1, nên tải tay từ gốc repo:
+
+```bash
+B=https://github.com/KatoTheFirst/SageServe-Group-4/releases/download/traces-v2
+for t in $(grep -o 'traces/[^ ]*_v2\.csv' traces/SHA256SUMS_v2); do curl -sSL $B/$(basename $t).gz | gunzip > $t; done
+curl -sSL $B/forecasts_v2.tar.gz | tar -xz        # Windows Git Bash: thêm --force-local nếu đường dẫn có "C:"
+curl -sSLO $B/SHA256SUMS_forecasts_v2
+sha256sum -c traces/SHA256SUMS_v2 && sha256sum -c SHA256SUMS_forecasts_v2
+```
+
+Trace độ nhạy `traces/sens_*.csv` không có trong Release: sinh bằng `python experiments/make_sens_traces.py`. Trace chẩn đoán `traces/diag_fork_s4_westus_load.csv` (dòng Table 1 của RESULTS.md) cũng không có. Trace v2 sinh từ v1 bằng `make_trace_v2.py`; mỗi cờ sửa đúng một cổng trượt của `TRACE_SPEC.md` (D2, D3, D8 trong `DECISIONS.md`). Chấm trace: `python qualify_trace.py <trace> --role t7|t11 ...`.
 
 | Trace v2 | Lệnh (từ trace v1 cùng tên) |
 |---|---|
@@ -32,7 +44,9 @@ Dự báo: `python generate_causal_arima_forecasts.py --trace traces/<v2>.csv --
 
 θ v2 (`benchmark_theta.py`, cách đo ở dưới): A100 `data/theta_tps_v2.csv` Bloom 386,42, Llama-2 976,26; H100 `data/theta_tps_h100_v2.csv` 549,11 / 1361,78; trace thứ hai `data/theta_tps_fork_v2.csv` 1209,56 / 3122,88. Mô hình khác giữ θ cũ (D9).
 
-Phần dưới mô tả trace v1 (giữ nguyên, kiểm bằng `sha256sum -c traces/SHA256SUMS`).
+### Trace v1 (nguồn của v2)
+
+Phần dưới mô tả trace v1 (giữ nguyên, kiểm bằng `sha256sum -c traces/SHA256SUMS`). Trace v2 sinh từ các file này.
 
 **Lấy trace nhanh (khuyên dùng):** các trace đã đóng băng nằm ở GitHub Release `traces-v1` của repo (dạng .csv.gz, 264 MB):
 `python fetch_traces.py` – tự tải, giải nén vào `traces/` và kiểm sha256. Dự báo ARIMA đi kèm đã có
@@ -67,6 +81,8 @@ Trong từng tầng, output gần như không đổi theo giờ (IW-F trung vị
 **θ cho ILP** (§2.1 "input TPS achieved at a target latency"; §5 "by benchmarking"):
 `python benchmark_theta.py <trace> <controller 1 vùng> <file θ> --out <thư mục> [--hour H] [--models ...]`. 6 instance cố định, không co giãn, Poisson, tăng tải đến khi TTFT P95 của IW vượt Table 1 (Bloom 12,9 s; Llama-2 34,5 s; Llama-3.x 1 s). Trần thang tải là tổng tải IW giờ cao nhất: trên đó 1 instance đã đủ, θ không còn ảnh hưởng ILP.
 
+θ v1 (dùng cho số v1; θ v2 ở đầu mục):
+
 | Trace | Mức tải đo θ Bloom, Llama-2 | Bloom | Llama-2 | Llama-3.1 | Llama-3.2 |
 |---|---|---:|---:|---:|---:|
 | Chính, A100 (`data/theta_tps.csv`) | giờ 8 (`--hour 8`) | 338,62 | 976,26 | 4145,95 | ≥ 16940,66 |
@@ -88,26 +104,25 @@ Cắt giờ cao điểm: `python cut_trace.py traces/composed_day_3regions.csv 1
 khi ổ chứa repo không đủ chỗ: `RESULTS_ROOT=D:/SageServe_results bash experiments/run.sh week`. Thời gian đo trên laptop 12 nhân: 4 bài song song cả ngày
 3 vùng ≈ 3 giờ; §4 cả ngày ≈ 1,5–3 giờ mỗi bài.
 
-**Kết quả hiện hành trên trace v2: `RESULTS.md`** (mỗi tuyên bố kèm lệnh tái tạo; `bash experiments/run_all.sh` chạy toàn bộ). Cột "Kết quả" dưới đây là số trên trace v1, giữ để đối chiếu.
+**Số liệu hiện hành (trace v2): [RESULTS.md](RESULTS.md).** Mỗi tuyên bố của bài báo có giá trị bài báo, kết quả nhóm, chấm điểm, loại nguyên nhân và lệnh tái tạo. Quyết định và bằng chứng: [DECISIONS.md](DECISIONS.md). Toàn bộ: `PY=<python> RESULTS_ROOT=<thư mục> bash experiments/run_all.sh` (~11,5 giờ).
 
-Cột "Kết quả" (v1): các bài LT chạy lại 2/11/2026 với θ ở trên và LT-UA so tải IW theo vùng gốc; Reactive, `s4`, `chiron`, `sched` giữ số 27/10 (bài Reactive `lt` chạy lại trùng từng byte). Số % là instance-hours so với Reactive, bỏ giờ 0. Lãng phí: `analyze_waste.py --skip_hours 1`.
+| Tên (`run.sh`) | Bài báo |
+|---|---|
+| `s4` | §4, Fig. 8, Table 1 |
+| `lt` | §7.2.1–7.2.4, Fig. 11, 13 |
+| `chiron` | §7.2.3 |
+| `scale5` | §7.2.5 (thay thế) |
+| `sched` | §7.2.6, Fig. 15 |
+| `nov2024`, `week`, `burst` | §7.2.7 |
+| `h100`, `niw_ratio` | Phụ lục A |
+| `oracle`, `beta`, `s4load`, `literal` | chẩn đoán Pha 5–6 (không có trong bài báo; xem RESULTS.md) |
+| `experiments/run_sens.sh sens\|sens2` | độ nhạy Pha 3 ([SENSITIVITY.md](SENSITIVITY.md)) |
 
-**Vì sao SLA của LT xấu hơn Reactive khi tải tăng dốc:** ARIMA-60 (đúng Phụ lục B) dự báo trễ, đỉnh dự báo chỉ đạt 40–65% đỉnh thực trong các giờ này (`forecast_log.csv`); LT-I, LT-U không được vượt mục tiêu ILP (§6.4, §7.2.7) và LT-UA chỉ tăng thêm khi tải ≥ 5x dự báo. Reactive không bị giới hạn này.
+So hai bài theo số liệu: `python experiments/compare_runs.py <A> <B>`.
 
-| Tên | Bài báo | Phân tích | Hướng kết quả phải thấy | Kết quả |
-|---|---|---|---|---|
-| `s4` | §4, Fig. 8, Table 1 | `python analyze_s4.py results/s4/unified results/s4/siloed --out results/s4/compare` | Unified ít hơn Siloed ~35%, độ trễ không xấu hơn | ✔ −32,7%, độ trễ ngang |
-| `lt` | §7.2.1–7.2.2, Fig. 11 | `python analyze_s4.py results/lt/reactive results/lt/lt_i results/lt/lt_u results/lt/lt_ua --skip_hours 1 --out results/lt/compare` | LT-I ≤ LT-UA ≤ LT-U < Reactive (−24/−23/−20%); LT-U/UA không xấu độ trễ | ½ LT-I / LT-U / LT-UA −5,9 / −3,9 / −5,0% (Llama-2: −15,5 / −14,0 / −15,1%; Bloom: −4,6 / −2,1 / −3,4%). Vi phạm IW Bloom ngang Reactive (14,1–14,3%); Llama-2 7,5 → 13,6 / 9,3 / 9,7%, TTFT P95 2,6 → 77,2 / 10,6 / 11,8 s |
-| (lt) | §7.2.4, Fig. 13b | `python analyze_waste.py results/lt/reactive results/lt/lt_i results/lt/lt_u results/lt/lt_ua --skip_hours 1` | LT giảm ~70% GPU-giờ lãng phí khi tăng máy | ½ LT-U −30%, LT-UA −40%, ✘ LT-I +87% |
-| `chiron` | §7.2.3 | `python analyze_s4.py results/lt/reactive results/chiron/chiron --skip_hours 1 --out results/chiron/compare` | Chiron ~3x Reactive, độ trễ đuôi không tốt hơn, dùng phần cứng kém hơn | ✔ 2,74x (Llama-2 3,9x; bài báo 3,2x) |
-| `scale5` | §7.2.5 (thay thế) | như `lt` với `results/scale5/*` | mô hình thêm vào: ít instance-hours hơn và độ trễ tốt hơn Reactive | ½ llama4-sub −13,6 / −12,7 / −16,2% instance-hours; ✘ vi phạm 8,7 → 13,8 / 13,6 / 14,0%, TTFT P95 2,7 → 222–242 s (tải tăng gấp đôi lúc 12h, ARIMA đạt 41% đỉnh). Tổng −7,3 / −6,2 / −6,6% |
-| `sched` | §7.2.6, Fig. 15 | `python analyze_sched.py results/sched/sla60/{fcfs,edf,pf,dpa}` (và `sla6`) | FCFS: IW-F vi phạm > IW-N; PF ưu tiên IW-F, IW-N trả giá; EDF, DPA ở giữa/điều chỉnh được | ✔ hướng, biên độ nhỏ (1–3 điểm) |
-| `nov2024` | §7.2.7 (T11/2024) | như `lt` với `results/nov2024/*` | Llama 2: Reactive 302, LT-I 227, LT-U 248, LT-UA 233 (~−25%) | ½ hướng: −19,1 / −13,9 / −14,0% (Llama-2 −18,1 / −12,5 / −12,7%); ✘ độ trễ: vi phạm IW Bloom 39,3 → 55,7 / 52,5 / 52,5%, Llama-2 20,0 → 48,4 / 37,5 / 37,5%, TTFT P95 Llama-2 3,6 → 702–734 s (tải tăng dốc 6–10h). Lãng phí −75 / −76 / −76% |
-| `burst` | §7.2.7 | như `lt` với `results/burst/*` | LT-UA xử lý burst tốt hơn LT-I/LT-U | ✘ LT-UA không hơn LT-U: −13,5 / −13,5% (LT-I −25,1%), vi phạm IW Llama-2 40,3 / 38,4% (LT-I 44,6%, Reactive 22,1%), TTFT P95 ~2600 s (Reactive 479 s). Lãng phí giảm 82–85% |
-| `week` | §7.2.7 cả tuần | như `lt` với `results/week/*` | LT-U ≈ LT-UA ngày thường, LT-UA tốt hơn cuối tuần chưa chạy với θ mới (số cũ không còn hợp lệ). Chạy ~11 giờ |
-| `h100` | Phụ lục A | như `lt` | A100: LT-UA tiết kiệm ~28% so với Reactive (nhiều hơn H100 vì A100 tải mô hình lâu hơn) | H100 LT-I −7,7 / LT-U −6,4 / LT-UA −7,5% (Llama-2 −17,9 / −16,9 / −19,0%), SLA gần Reactive; ✘ A100 (LT-UA −5,0%) không tiết kiệm hơn H100 (cùng 600 s khởi động – bài báo không cho thời gian tải A100) |
-| `niw_ratio` | Phụ lục A | như `lt` | xu hướng tiết kiệm giữ nguyên khi đổi IW:NIW | ✔ 9:1: −4,2 / −4,3 / −5,0%; 1:1: −8,4 / −3,8 / −4,0%. Ở 1:1, NIW chỉ hoàn thành 86–89% trong ngày |
-| – | Phụ lục B, Fig. 17 | `python compare_forecasters.py traces/composed_day_3regions.csv` | MA nhanh nhưng kém; TVAR, HMM chính xác hơn ARIMA nhưng chậm hơn nhiều | ✔ MA 27%, ARIMA 25%, TVAR 24,5% (~20x chậm), HMM ~4x chậm |
+### Kết quả v1 (lịch sử)
+
+Bảng kết quả trên trace v1 (số 27/10 và các bài LT chạy lại 2/11/2026) nằm ở commit `27345e2`: `git show 27345e2:REPRODUCE.md`, mục 3. Số v1 không còn dùng để kết luận; trace v1 vẫn giữ (Release `traces-v1`) vì v2 sinh từ v1.
 
 Biểu đồ cho slide: `python plot_slides.py nv1 results/s4/unified results/s4/siloed --out <tiền tố>` (§4) và
 `python plot_slides.py nv2 <bài online> <bài offline> --out <tiền tố>` (Load Predictor).
