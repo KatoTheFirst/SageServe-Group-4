@@ -18,3 +18,5 @@ traces/forecasts/*
 !traces/forecasts/composed_day_3regions_niw9/
 !traces/forecasts/composed_week_3regions/
 !traces/forecasts/fork_day_3regions/
+!traces/SHA256SUMS_v2
+!traces/SHA256SUMS_archive

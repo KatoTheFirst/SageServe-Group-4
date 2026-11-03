@@ -14,7 +14,25 @@ python -m pytest            # toàn bộ khoảng 5 phút, gồm mô phỏng end
 Windows: đặt `PYTHONIOENCODING=utf-8`. Runner dùng biến `PY` (mặc định `python`), ví dụ
 `PY=E:/Anaconda_XSTK/envs/sim/python.exe bash experiments/run.sh lt`.
 
-## 2. Trace (đã đóng băng – kiểm tra bằng `sha256sum -c traces/SHA256SUMS`)
+## 2. Trace
+
+**Từ 3/11/2026, mọi thí nghiệm dùng trace v2** (`sha256sum -c traces/SHA256SUMS_v2`). Trace v2 sinh từ v1 bằng `make_trace_v2.py`; mỗi cờ sửa đúng một cổng trượt của `TRACE_SPEC.md` (D2, D3, D8 trong `DECISIONS.md`). Chấm trace: `python qualify_trace.py <trace> --role t7|t11 ...`.
+
+| Trace v2 | Lệnh (từ trace v1 cùng tên) |
+|---|---|
+| `composed_day_3regions_v2`, `_niw9_v2`, `_niw1_v2`, `_5models_v2` | `python make_trace_v2.py traces/<v1>.csv traces/<v2>.csv --iwn_diurnal 0.6 --niw_sigma 0.22` |
+| `composed_week_3regions_v2` | như trên, thêm `--fill_week_iwn` |
+| `fork_day_3regions_v2` | `python make_trace_v2.py traces/fork_day_3regions.csv traces/fork_day_3regions_v2.csv --region_share 0.31 0.31 0.38 --clip_max 9 --spikes IW 1.77 1.77 --spikes NIW 2.5 3.75` |
+| `fork_s4_westus_v2` | `python make_trace_v2.py traces/fork_s4_westus.csv traces/fork_s4_westus_v2.csv --niw_ratio 7 --clip_max 9 --spikes IW 1.77 1.77 --spikes NIW 2.5 3.75` |
+| `composed_day_3regions_burst8_v2` | `python inject_burst.py traces/composed_day_3regions_v2.csv traces/composed_day_3regions_burst8_v2.csv` |
+| `*_12to15_v2` | `python cut_trace.py traces/<v2>.csv 12 15 traces/<tên>_12to15_v2.csv` |
+| `composed_day_3regions_12to15_iwn6_v2` | bản cắt trên, đặt `sla` = 6 cho dòng `scenario == "IW-N"` |
+
+Dự báo: `python generate_causal_arima_forecasts.py --trace traces/<v2>.csv --output_dir traces/forecasts/<v2>`. Đã kiểm sinh lại `composed_day_3regions_v2`, `fork_day_3regions_v2`, `fork_s4_westus_v2`: trùng hash.
+
+θ v2 (`benchmark_theta.py`, cách đo ở dưới): A100 `data/theta_tps_v2.csv` Bloom 386,42, Llama-2 976,26; H100 `data/theta_tps_h100_v2.csv` 549,11 / 1361,78; trace thứ hai `data/theta_tps_fork_v2.csv` 1209,56 / 3122,88. Mô hình khác giữ θ cũ (D9).
+
+Phần dưới mô tả trace v1 (giữ nguyên, kiểm bằng `sha256sum -c traces/SHA256SUMS`).
 
 **Lấy trace nhanh (khuyên dùng):** các trace đã đóng băng nằm ở GitHub Release `traces-v1` của repo (dạng .csv.gz, 264 MB):
 `python fetch_traces.py` – tự tải, giải nén vào `traces/` và kiểm sha256. Dự báo ARIMA đi kèm đã có
@@ -70,7 +88,9 @@ Cắt giờ cao điểm: `python cut_trace.py traces/composed_day_3regions.csv 1
 khi ổ chứa repo không đủ chỗ: `RESULTS_ROOT=D:/SageServe_results bash experiments/run.sh week`. Thời gian đo trên laptop 12 nhân: 4 bài song song cả ngày
 3 vùng ≈ 3 giờ; §4 cả ngày ≈ 1,5–3 giờ mỗi bài.
 
-Cột "Kết quả": các bài LT chạy lại 2/11/2026 với θ ở trên và LT-UA so tải IW theo vùng gốc; Reactive, `s4`, `chiron`, `sched` giữ số 27/10 (bài Reactive `lt` chạy lại trùng từng byte). Số % là instance-hours so với Reactive, bỏ giờ 0. Lãng phí: `analyze_waste.py --skip_hours 1`.
+**Kết quả hiện hành trên trace v2: `RESULTS.md`** (mỗi tuyên bố kèm lệnh tái tạo; `bash experiments/run_all.sh` chạy toàn bộ). Cột "Kết quả" dưới đây là số trên trace v1, giữ để đối chiếu.
+
+Cột "Kết quả" (v1): các bài LT chạy lại 2/11/2026 với θ ở trên và LT-UA so tải IW theo vùng gốc; Reactive, `s4`, `chiron`, `sched` giữ số 27/10 (bài Reactive `lt` chạy lại trùng từng byte). Số % là instance-hours so với Reactive, bỏ giờ 0. Lãng phí: `analyze_waste.py --skip_hours 1`.
 
 **Vì sao SLA của LT xấu hơn Reactive khi tải tăng dốc:** ARIMA-60 (đúng Phụ lục B) dự báo trễ, đỉnh dự báo chỉ đạt 40–65% đỉnh thực trong các giờ này (`forecast_log.csv`); LT-I, LT-U không được vượt mục tiêu ILP (§6.4, §7.2.7) và LT-UA chỉ tăng thêm khi tải ≥ 5x dự báo. Reactive không bị giới hạn này.
 

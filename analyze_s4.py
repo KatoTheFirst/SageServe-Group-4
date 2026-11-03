@@ -60,6 +60,7 @@ def analyze(d, skip_hours=0):
     res = pd.DataFrame({
         "instance_hours": ih,
         "iw_done": iw.size(), "iw_ttft_p95": iw.ttft.quantile(.95), "iw_e2e_p95": iw.response_time.quantile(.95),
+        "iw_ttft_q3": iw.ttft.quantile(.75), "iw_e2e_q3": iw.response_time.quantile(.75),     # Fig. 13a dùng Q3
         "iw_sla_miss_%": 100 * iw.sla_miss.mean(),
         "niw_done": niw.size(), "niw_e2e_p95": niw.response_time.quantile(.95),
         "niw_sla_miss_%": 100 * niw.sla_miss.mean(),

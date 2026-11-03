@@ -26,5 +26,5 @@ for run in a.runs:
 d = pd.DataFrame(rows)
 res = d.pivot_table(index="run", columns="kind", values="hours", aggfunc="sum", fill_value=0)
 res["events"] = d.groupby("run").size()
-res["total_gpu_hours"] = res.drop(columns="events").sum(axis=1)
+res["total_instance_hours"] = res.drop(columns="events").sum(axis=1)
 print(res.round(2).to_string())

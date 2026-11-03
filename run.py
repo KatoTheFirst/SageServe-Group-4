@@ -65,6 +65,9 @@ def run(cfg: DictConfig) -> None:
     # delete existing oom.csv if any
     if os.path.exists("oom.csv"):
         os.remove("oom.csv")
+    # biến SAGE_* (bản vá của experiments/run_patched.py) không nằm trong .hydra; ghi lại để compare_runs.py đối chiếu cấu hình
+    with open("sage_env.txt", "w", encoding="utf-8") as f:
+        f.writelines(f"{k}={v}\n" for k, v in sorted(os.environ.items()) if k.startswith("SAGE_"))
     # for c in os.listdir('.'):
     #     if os.path.isdir(c):
     #         shutil.rmtree(c)
