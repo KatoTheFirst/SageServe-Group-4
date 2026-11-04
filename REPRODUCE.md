@@ -25,7 +25,7 @@ B=https://github.com/KatoTheFirst/SageServe-Group-4/releases/download/traces-v2
 for t in $(grep -o 'traces/[^ ]*_v2\.csv' traces/SHA256SUMS_v2); do curl -sSL $B/$(basename $t).gz | gunzip > $t; done
 curl -sSL $B/forecasts_v2.tar.gz | tar -xz        # Windows Git Bash: thêm --force-local nếu đường dẫn có "C:"
 curl -sSLO $B/SHA256SUMS_forecasts_v2
-sha256sum -c traces/SHA256SUMS_v2 && sha256sum -c SHA256SUMS_forecasts_v2
+tr -d '\r' < traces/SHA256SUMS_v2 | sha256sum -c && sha256sum -c SHA256SUMS_forecasts_v2   # tr: git trên Windows checkout file này với CRLF
 ```
 
 Trace độ nhạy `traces/sens_*.csv` không có trong Release: sinh bằng `python experiments/make_sens_traces.py`. Trace chẩn đoán `traces/diag_fork_s4_westus_load.csv` (dòng Table 1 của RESULTS.md) cũng không có. Trace v2 sinh từ v1 bằng `make_trace_v2.py`; mỗi cờ sửa đúng một cổng trượt của `TRACE_SPEC.md` (D2, D3, D8 trong `DECISIONS.md`). Chấm trace: `python qualify_trace.py <trace> --role t7|t11 ...`.

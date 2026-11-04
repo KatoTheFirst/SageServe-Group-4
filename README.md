@@ -22,7 +22,7 @@ B=https://github.com/KatoTheFirst/SageServe-Group-4/releases/download/traces-v2
 for t in $(grep -o 'traces/[^ ]*_v2\.csv' traces/SHA256SUMS_v2); do curl -sSL $B/$(basename $t).gz | gunzip > $t; done
 curl -sSL $B/forecasts_v2.tar.gz | tar -xz        # Windows Git Bash: thêm --force-local nếu đường dẫn có "C:"
 curl -sSLO $B/SHA256SUMS_forecasts_v2
-sha256sum -c traces/SHA256SUMS_v2 && sha256sum -c SHA256SUMS_forecasts_v2
+tr -d '\r' < traces/SHA256SUMS_v2 | sha256sum -c && sha256sum -c SHA256SUMS_forecasts_v2   # tr: git trên Windows checkout file này với CRLF
 ```
 
 `python fetch_traces.py` hiện **chỉ tải trace v1** (Release `traces-v1`), không đủ để chạy `experiments/run.sh`.
