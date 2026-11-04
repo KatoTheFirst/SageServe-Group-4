@@ -138,7 +138,7 @@ tối đa instance, NIW hoàn thành) trên kết quả bất kỳ. LT-I trượ
 | NIW | Queue Manager: < 60% đưa 1, < 50% đưa 2; NIW sau IW, ngang IW sau 10 h; Siloed: NIW vào thẳng nhóm `-d` | tín hiệu mỗi 1 s |
 | ILP §5 | ràng buộc từng vùng ≥ ε·đỉnh, toàn cục ≥ đỉnh tổng, δ ≥ −n; min α·δ + σ·max(δ,0); đỉnh dự báo cả giờ tới; β = 10% tải NIW giờ trước | ε = 0,9; σ = α·600/3600; θ đo bằng `benchmark_theta.py` (mục 2) |
 | Dự báo | ARIMA cửa sổ 60 phút, TPM, dự báo 60 phút, mỗi giờ (nhân quả) | giờ 0 = trung bình giờ 0 |
-| Load Predictor | `global_arbiter.forecast_mode=online`: mỗi giờ huấn luyện ARIMA-60 trên TPM quan sát trong simulator (trùng `offline` – lệch ≤ 1e-6); cả hai ghi `forecast_log.csv` (đỉnh/trung bình dự báo vs thực tế theo giờ). Cửa sổ dự báo canh theo phút tròn (trước 26/10 lấy nhầm phút đầu giờ sau → kết quả LT cũ hơi cấp thừa máy khi tải tăng) | — |
+| Load Predictor | `global_arbiter.forecast_mode=online`: mỗi giờ huấn luyện ARIMA-60 trên TPM quan sát trong simulator (online so với offline: mô phỏng trùng khớp (compare_runs TRÙNG); dự báo lệch tương đối ≤ 6e-6 (≤ 0,005 TPM) do file offline làm tròn 2 chữ số); cả hai ghi `forecast_log.csv` (đỉnh/trung bình dự báo vs thực tế theo giờ). Cửa sổ dự báo canh theo phút tròn (trước 26/10 lấy nhầm phút đầu giờ sau → kết quả LT cũ hơi cấp thừa máy khi tải tăng) | — |
 | LT-I / LT-U / LT-UA | §6.4; LT-UA: 20 phút cuối giờ, tải ≥ 5x dự báo → tăng, ≤ 0,5x → giảm. Tải so sánh là input TPS của IW theo vùng gốc, cùng đại lượng với dự báo (trước 2/11 đếm cả NIW và lưu lượng chuyển vùng) | — |
 | Định tuyến | chuyển vùng khi quá tải; trễ chuyển vùng 90% ≤ 500 ms, < 2% tới 2,5 s | dạng phân phối |
 | Bộ lập lịch §6.5 | FCFS / EDF / PF / DPA (`queue_policy`) | τ_p = 1 s, τ_n = 5 s |

@@ -11,3 +11,4 @@
 5. **Chỉ số quyết định đếm 1–1, không đếm trùng.** Ví dụ flap: mỗi scale-out chỉ khớp một scale-in gần nhất trước nó, chưa được ghép. Nêu rõ phần bị loại (ví dụ bỏ giờ đầu).
 6. **Việc ngoài danh sách đã duyệt: hỏi trước.** Kể cả bước phụ "dọn cho gọn"; không xóa hay ghi đè dữ liệu kết quả khi chưa được duyệt.
 7. **Một thư mục kết quả, một tiến trình ghi.** Trước khi khởi động một bài hoặc pytest, kiểm không có tiến trình cùng đích đang chạy; mỗi thư mục kết quả chỉ một tiến trình ghi.
+8. **Bị từ chối quyền thì dừng.** Lệnh bị từ chối quyền thì dừng và hỏi tôi; không dùng công cụ/shell khác để làm cùng việc.
