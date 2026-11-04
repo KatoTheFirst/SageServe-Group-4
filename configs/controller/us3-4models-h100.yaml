@@ -1,5 +1,5 @@
 # F16 (Phụ lục A): giống us3-4models.yaml nhưng cụm H100. Khi bật LT cần θ của H100: chạy Reactive rồi
-#   python analyze_capacity.py <kết quả> <trace> data/theta_tps_h100.csv  và đặt global_arbiter.theta_file=data/theta_tps_h100.csv
+#   python benchmark_theta.py <trace> us1-4models-h100 data/theta_tps_h100.csv --out <thư mục> --hour 8  và đặt global_arbiter.theta_file=data/theta_tps_h100.csv
 power_budget: 232000
 
 regions:

@@ -1,0 +1,6 @@
+model,theta_tps
+bloom-176b,386.42
+llama2-70b,976.26
+llama3.1-8b,4145.95
+llama3.2-3b,16940.66
+llama4-sub,976.26

@@ -119,8 +119,12 @@ class RoundRobin(ModelEndpointRouter):
         super().__init__(region, model_name, start_state, scaling_interval, scaling_level, short_term_scaling, overheads)
         self.idx = -1
         self.current_request = None
-        self.recent_tokens = deque()     # (thời điểm, prompt_size) trong 60 s gần nhất – LT-UA so với ARIMA (§6.4)
+        self.recent_tokens = deque()     # (thời điểm, prompt_size) của IW có vùng gốc ở đây, 60 s gần nhất – cùng đại lượng với dự báo ARIMA mà LT-UA so (§6.4)
         self.recent_token_sum = 0
+
+    def record_iw_tokens(self, tokens):
+        self.recent_tokens.append((clock(), tokens))
+        self.recent_token_sum += tokens
 
     def tokens_last_minute(self):
         while self.recent_tokens and self.recent_tokens[0][0] < clock() - 60:
@@ -131,8 +135,6 @@ class RoundRobin(ModelEndpointRouter):
     """
     def route(self, request):
         # start_time = time()
-        self.recent_tokens.append((clock(), request.prompt_size))
-        self.recent_token_sum += request.prompt_size
         if self.short_term_scaling and clock() > self.last_scale_timestamp + self.scaling_interval:
             if self.short_term_scaling:
                 self.current_request = request

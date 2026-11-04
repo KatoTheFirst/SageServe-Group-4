@@ -477,7 +477,10 @@ class GlobalArbiterARIMAChecking(GlobalAribiterMemoryUtilizationScaling):
 
     def ratio_between_arima_and_actual(self, model_endpoint):
         predicted = self.arima_forecast[model_endpoint.model_name].get(60 * (clock() // 60), 0)
-        return model_endpoint.tokens_last_minute() / predicted if predicted > 0 else float("inf")
+        observed = model_endpoint.tokens_last_minute()
+        if predicted > 0:
+            return observed / predicted
+        return float("inf") if observed > 0 else 1.0      # dự báo 0, tải 0: không có khoảng lệch
 
     def scale(self, model_endpoint):
         name = model_endpoint.model_name

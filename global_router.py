@@ -145,6 +145,7 @@ class ProbabilisticRouter(GlobalRouter):
             self.global_arbiter.scale()
         if self.long_term_scaling and request.workload_type == "prod":
             self.global_arbiter.observe(int(request.region_priority[0]), request.model_type, request.prompt_size)
+            self.region_routers[int(request.region_priority[0])].model_endpoint_routers[request.model_type].record_iw_tokens(request.prompt_size)
         if clock() > self.last_reported_allocation_time + self.allocation_interval:
             self.last_reported_allocation_time = clock()
         if self.long_term_scaling and self.no_reroute:

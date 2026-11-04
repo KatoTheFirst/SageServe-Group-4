@@ -5,7 +5,28 @@ BTL Các chuyên đề trong truyền thông và mạng máy tính - Nhóm 4
 
 Code trong repo đã được sửa để chạy theo bài báo SageServe (arXiv 2502.14617v3).
 
-- Lấy trace: `python fetch_traces.py`
+### Trạng thái hiện tại (Pha 0–6 xong, 4/11/2026)
+
+- **Trace:** mọi thí nghiệm dùng trace v2 (`traces/SHA256SUMS_v2`), sinh từ v1 bằng `make_trace_v2.py` để qua các cổng của `TRACE_SPEC.md`.
+- **Kết luận chính** (nguyên văn từ [RESULTS.md](RESULTS.md)): "hướng của bài báo đứng được (khi dự báo tốt), biên độ thì không tái lập được; bài báo không cho sai số dự báo đỉnh, nên không biết bao nhiêu trong 20–24% đến từ cùng cơ chế (loại C)."
+- **Số liệu và chấm điểm từng tuyên bố:** [RESULTS.md](RESULTS.md). **Quyết định và bằng chứng:** [DECISIONS.md](DECISIONS.md). **Đối chiếu với Plan 12 tuần:** [PLAN_MAPPING.md](PLAN_MAPPING.md).
+- **Lấy trace:** xem mục "Lấy trace v2" ngay bên dưới.
+- **Chạy:** `PY=<python> RESULTS_ROOT=<thư mục> bash experiments/run.sh <tên>`; mỗi dòng của RESULTS.md ghi lệnh chạy và lệnh phân tích. So hai bài: `python experiments/compare_runs.py <A> <B>`.
+
+### Lấy trace v2
+
+Mọi lệnh trong `experiments/run.sh` dùng trace v2. Tải 12 trace và dự báo từ GitHub Release `traces-v2` (y như [REPRODUCE.md](REPRODUCE.md) mục 2), chạy ở gốc repo:
+
+```bash
+B=https://github.com/KatoTheFirst/SageServe-Group-4/releases/download/traces-v2
+for t in $(grep -o 'traces/[^ ]*_v2\.csv' traces/SHA256SUMS_v2); do curl -sSL $B/$(basename $t).gz | gunzip > $t; done
+curl -sSL $B/forecasts_v2.tar.gz | tar -xz        # Windows Git Bash: thêm --force-local nếu đường dẫn có "C:"
+curl -sSLO $B/SHA256SUMS_forecasts_v2
+tr -d '\r' < traces/SHA256SUMS_v2 | sha256sum -c && sha256sum -c SHA256SUMS_forecasts_v2   # tr: git trên Windows checkout file này với CRLF
+```
+
+`python fetch_traces.py` hiện **chỉ tải trace v1** (Release `traces-v1`), không đủ để chạy `experiments/run.sh`.
+
 - Chạy thí nghiệm: `bash experiments/run.sh <tên>` (s4, lt, chiron, sched, nov2024, scale5, burst, week, h100, niw_ratio)
 - Kiểm thử: `python -m pytest`
 - Hướng dẫn đầy đủ, kết quả đối chiếu và các điểm còn lệch: [REPRODUCE.md](REPRODUCE.md)

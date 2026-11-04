@@ -140,7 +140,7 @@ class MilpGlobalArbiter(GlobalArbiter):
         self.model_list = unique_models
         for i in range(self.models):
             self.model_to_idx_mapping[unique_models[i]] = i
-        # θ (§5): TPS 1 instance gánh ở ngưỡng bộ nhớ 70%, đo bằng analyze_capacity.py; dự báo tính theo TPM nên ×60
+        # θ (§2.1, §5): input TPS 1 instance ở latency mục tiêu, đo bằng benchmark_theta.py; dự báo tính theo TPM nên ×60
         theta = pd.read_csv(self.theta_file).set_index("model").theta_tps
         self.milp_allocator = MilpLongTermAllocation(
             models=self.models,

@@ -29,11 +29,13 @@ def check(name, ok, detail):
     print(f"[{'PASS' if ok else 'FAIL'}] {name}: {detail}")
 
 
-# 1. Giới hạn số instance: Unified tối đa 20/mô hình; Siloed tối đa 16 (IW) + 4 (NIW); tối thiểu 2 (§4).
+# 1. Theo từng vùng: tối thiểu 2. Trần chỉ thuộc cấu hình §4 (1 vùng): Unified 20/mô hình; Siloed 16 (IW) + 4 (NIW).
 mem = concat(f"{a.run}/memory/*.csv")
-mem["ep"] = mem.instance.str.split("_").str[1]
+parts = mem.instance.str.split("_")
+mem["ep"] = parts.str[0] + "_" + parts.str[1]
+single_region = parts.str[0].nunique() == 1
 cnt = mem[mem.time > 900].groupby(["ep", "time"]).instance.nunique().groupby("ep").agg(["min", "max"])
-cap = {ep: (16 if ep.endswith("-p") else 4) if a.siloed else 20 for ep in cnt.index}
+cap = {ep: ((16 if ep.endswith("-p") else 4) if a.siloed else 20) if single_region else float("inf") for ep in cnt.index}
 over = {ep: int(r["max"]) for ep, r in cnt.iterrows() if r["max"] > cap[ep]}
 under = {ep: int(r["min"]) for ep, r in cnt.iterrows() if r["min"] < 2}
 check("Số instance trong giới hạn", not over and not under,

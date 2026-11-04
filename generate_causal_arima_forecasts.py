@@ -58,6 +58,18 @@ def forecast_series(tpm):
     return pd.DataFrame(rows, columns=["Time", "Predicted", "issue_time", "order"])
 
 
+def oracle_series(tpm, smooth=False):
+    """Chỉ để chẩn đoán (không nhân quả): "dự báo" = TPM thực, cùng định dạng với forecast_series.
+    smooth: TPM thực làm trơn bằng trung bình trượt WINDOW phút (căn giữa), bỏ gai từng phút."""
+    pred = pd.Series(tpm).rolling(WINDOW, center=True, min_periods=1).mean().values if smooth else tpm
+    return pd.DataFrame({"Time": 60 * np.arange(len(tpm)), "Predicted": np.round(pred, 2),
+                         "issue_time": 3600 * (np.arange(len(tpm)) // HORIZON), "order": "oracle_smooth" if smooth else "oracle"})
+
+
+def oracle_smooth_series(tpm):
+    return oracle_series(tpm, smooth=True)
+
+
 def mape_hourly_peak(tpm, fc):
     """Sai số đỉnh giờ (đại lượng ILP dùng), bỏ giờ 0."""
     act = pd.Series(tpm).groupby(np.arange(len(tpm)) // HORIZON).max()
@@ -71,6 +83,8 @@ def main():
     ap.add_argument("--trace", required=True)
     ap.add_argument("--output_dir", required=True)
     ap.add_argument("--workers", type=int, default=max(1, os.cpu_count() - 1))
+    ap.add_argument("--oracle", nargs="?", const="exact", choices=["exact", "smooth"],
+                    help="dự báo = tải thực (exact) hoặc tải thực làm trơn 60 phút (smooth); chẩn đoán, không phải SageServe")
     a = ap.parse_args()
     os.makedirs(a.output_dir, exist_ok=True)
     d = pd.read_csv(a.trace, usecols=["model_type", "workload_type", "arrival_timestamp", "prompt_size", "regions"],
@@ -85,7 +99,8 @@ def main():
         series.append(x.groupby((x.arrival_timestamp // 60).astype(int)).prompt_size.sum()
                       .reindex(range(minutes), fill_value=0).values.astype(float))
     with Pool(a.workers) as pool:
-        forecasts = pool.map(forecast_series, series)
+        fn = {None: forecast_series, "exact": oracle_series, "smooth": oracle_smooth_series}[a.oracle]
+        forecasts = pool.map(fn, series)
 
     digest = hashlib.sha256(open(a.trace, "rb").read()).hexdigest()[:16]
     meta = []
