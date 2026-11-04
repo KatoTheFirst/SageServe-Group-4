@@ -59,3 +59,4 @@ Tổng: K 77,0 GB; R 52,2 GB (đề xuất xóa ≈ 45,5 GB; đề xuất giữ 
   - GIỮ `theta_bench`, `v2/cut`, `results/nv2`, `results/nv2_6h`. Không đụng `niw9/compare`, `scale5/compare`, `results/{_diag,_truoc_sua_cua_so,_truoc_sua_spinup}`: các mục này không có trong bảng R. Không đụng `E:/tmp`.
   - Trống thực tế (GiB, cùng đơn vị dòng trên) sau khi xóa và sau Bước 5: C: 9,42; D: 50,95; E: 37,46.
 - 4/11 Bước 5 (ghi ở D24): pytest 89/89; `sha256sum -c` 13/13 và 15/15 OK, `SHA256SUMS_archive` 0/1 như đã biết từ D19. Chạy lại `s4` (2 bài) và `lt/lt_u` vào `D:/SageServe_results/v2/verify_d24` (1,56 GiB, GIỮ làm bằng chứng): `compare_runs.py` cho TRÙNG cả 3 bài; số của RESULTS.md khớp.
+- 4/11, người dùng duyệt: xóa `v2/verify_d24` (bằng chứng đã ghi ở D24, bài gốc vẫn giữ).

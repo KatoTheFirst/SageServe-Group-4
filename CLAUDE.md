@@ -10,3 +10,4 @@
 4. **Tách "chặn lỗi" khỏi "chính sách"** khi tạo biến thể theo đúng chữ bài báo: luật chỉ để tránh lỗi (chia cho 0, trạng thái hỏng) thì giữ; luật là lựa chọn hành vi mà bài báo không nêu thì tắt hoặc thay bằng hành vi bài báo mô tả.
 5. **Chỉ số quyết định đếm 1–1, không đếm trùng.** Ví dụ flap: mỗi scale-out chỉ khớp một scale-in gần nhất trước nó, chưa được ghép. Nêu rõ phần bị loại (ví dụ bỏ giờ đầu).
 6. **Việc ngoài danh sách đã duyệt: hỏi trước.** Kể cả bước phụ "dọn cho gọn"; không xóa hay ghi đè dữ liệu kết quả khi chưa được duyệt.
+7. **Một thư mục kết quả, một tiến trình ghi.** Trước khi khởi động một bài hoặc pytest, kiểm không có tiến trình cùng đích đang chạy; mỗi thư mục kết quả chỉ một tiến trình ghi.
