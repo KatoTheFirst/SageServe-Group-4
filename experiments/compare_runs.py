@@ -93,7 +93,8 @@ def compare(a, b, tol):
 
 
 def overrides(run):
-    """Khóa=giá trị trong .hydra/overrides.yaml (bỏ output_dir) và biến SAGE_* trong sage_env.txt (run.py ghi lúc chạy);
+    """Khóa=giá trị trong .hydra/overrides.yaml (bỏ output_dir) và các dòng của sage_env.txt (run.py ghi lúc chạy: biến SAGE_*,
+    CODE_COMMIT, CODE_DIFF_SHA256 – hai bài khác code thì cấu hình khác, không bị gắn KHÔNG TẤT ĐỊNH);
     None nếu thiếu một trong hai file – bài chạy trước khi có sage_env.txt không đối chiếu được."""
     p, e = f"{run}/.hydra/overrides.yaml", f"{run}/sage_env.txt"
     if not (os.path.exists(p) and os.path.exists(e)):

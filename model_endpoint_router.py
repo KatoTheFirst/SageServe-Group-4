@@ -91,6 +91,10 @@ class ModelEndpointRouter(ABC):
             memory += application.get_memory()
         return memory
 
+    def instance_count(self):
+        """Số instance của endpoint, kể cả đang lấy lại spot / khởi động (như arbiter.size)."""
+        return sum(len(app.instances) + app.pending_instances for app in self.applications)
+
     def get_max_memory(self):
         """
         Get model endpoint max memory available.
@@ -136,9 +140,13 @@ class RoundRobin(ModelEndpointRouter):
     def route(self, request):
         # start_time = time()
         if self.short_term_scaling and clock() > self.last_scale_timestamp + self.scaling_interval:
-            if self.short_term_scaling:
-                self.current_request = request
-                self.region.region_cluster.arbiter.scale(self)
+            self.current_request = request
+            # §7.1 "cooldown period of 15s between scaling events" (D30, theo patch T24 của Đoàn Việt Đức; áp cho mọi chiến lược):
+            # scaling event = lần gọi scale() làm số instance của endpoint đổi (tính cả pending). Mốc 15 s tính từ lúc quyết định;
+            # lần gọi không co giãn hoặc bị chặn không đặt lại mốc.
+            before = self.instance_count()
+            self.region.region_cluster.arbiter.scale(self)
+            if self.instance_count() != before:
                 self.last_scale_timestamp = clock()
 
         # bài báo §6.1: deployment có bộ nhớ hiệu dụng thấp nhất; scheduler chọn instance ít token chờ nhất

@@ -382,9 +382,12 @@ def reschedule_event(*args):
     return sim.reschedule(*args)
 
 def feed_async(region, model_name, feed_async_granularity):
-    mem_util = region.region_cluster.get_memory(model_name) / region.region_cluster.get_max_memory(model_name)
-    if mem_util > 0.6:
-        return
+    max_memory = region.region_cluster.get_max_memory(model_name)
+    if max_memory <= 0:
+        return      # chặn chia 0: endpoint chưa có instance sẵn sàng thì chưa nhận NIW (theo patch T24 của Đoàn Việt Đức)
+    mem_util = region.region_cluster.get_memory(model_name) / max_memory
+    if mem_util >= 0.6:
+        return      # §6.1 "falls below ... 60%", §6.2 "less than 60%": đúng 60% không đưa (D30)
     n = 2 if mem_util < 0.5 else 1  # bài báo §6.2: < 60% đưa 1 NIW, < 50% đưa 2
     for _ in range(n * feed_async_granularity):
         feed_async_helper(region, model_name)

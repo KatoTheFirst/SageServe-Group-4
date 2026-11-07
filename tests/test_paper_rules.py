@@ -87,13 +87,13 @@ def test_lt_ua_needs_target_reached(monkeypatch):
 
 
 # §6.2 Queue Manager: < 60% đưa 1, < 50% đưa 2, ≥ 60% không đưa
-@pytest.mark.parametrize("mem,n", [(0.61, 0), (0.60, 1), (0.50, 1), (0.49, 2)])
+@pytest.mark.parametrize("mem,n", [(0.61, 0), (0.60, 0), (0.59, 1), (0.50, 1), (0.49, 2)])
 def test_niw_feed_rate(monkeypatch, mem, n):
     sent = []
     monkeypatch.setattr(simulator, "feed_async_helper", lambda r, m: sent.append(m))
     region = NS(region_cluster=NS(get_memory=lambda m: mem, get_max_memory=lambda m: 1.0))
     simulator.feed_async(region, "m", 1)
-    assert len(sent) == (0 if mem > 0.6 else n)
+    assert len(sent) == n
 
 
 # §6.1 Global: vùng đầu tiên theo thứ tự có bộ nhớ < 70%; không vùng nào thì vùng bộ nhớ thấp nhất
