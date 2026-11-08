@@ -1,6 +1,106 @@
 # SageServe-Group-4
 BTL Các chuyên đề trong truyền thông và mạng máy tính - Nhóm 4
 
+## Hướng dẫn cho thành viên nhóm
+
+Viết cho người không đọc code. Mọi lệnh chạy trong **Git Bash** (cài kèm Git for Windows), ở thư mục gốc repo, trừ khi ghi khác. Không dùng PowerShell: lệnh `curl`, `tr`, `sha256sum`, `source` ở dưới không chạy trong PowerShell.
+
+### 1. Bắt đầu nhanh (5 bước)
+
+| Bước | Lệnh | Mất bao lâu | Đúng khi |
+|---|---|---|---|
+| 1. Lấy code | Lần đầu: `git clone https://github.com/KatoTheFirst/SageServe-Group-4.git && cd SageServe-Group-4`. Đã có repo: `git checkout main && git pull`. Khi PR #2 chưa được gộp vào `main`, số v2.1 nằm ở nhánh `pha4-6-v2`: chạy thêm `git checkout pha4-6-v2` | dưới 1 phút (đo: 35 s) | Thư mục có `run.py`, `RESULTS.md` |
+| 2. Môi trường Python 3.11 | Cách A (venv): `py -3.11 -m venv .venv && source .venv/Scripts/activate` (không có `py`: thay `py -3.11` bằng đường dẫn tới `python.exe` 3.11). Cách B (conda): `conda create -n sim python=3.11 && conda activate sim`. Sau đó: `pip install -r requirements.txt` và `export PYTHONIOENCODING=utf-8` | khoảng 5 phút (đo: tạo venv 15 s, cài 4 phút 19 s khi pip đã có sẵn gói tải về; lần đầu có thể lâu hơn) | `python --version` in `Python 3.11.x`; `pip` không báo `ERROR` |
+| 3. Trace v2 và dự báo | 5 lệnh ngay dưới bảng | khoảng 1 phút (đo: 58 s) | Mọi dòng in `OK` (12 trace, 3 file θ, rồi các file dự báo), không dòng nào `FAILED` |
+| 4. Kiểm thử | `python -m pytest` | khoảng 5 phút (đo: 5 phút 9 giây) | Dòng cuối `101 passed`, không có `failed` |
+| 5. Chạy thử | `bash experiments/run.sh s4 300` (§4, chỉ 300 giây mô phỏng) | vài giây (đo: 6 s) | Dòng cuối `[+] Xong s4`; có `results/s4/unified/run.log` với dòng cuối chứa `TraceSimulator completed at 300`. Bài 300 s chỉ để thử máy chạy được: chưa có số để phân tích (mục 3) |
+
+Lệnh bước 3 (tải 12 trace + dự báo từ Release `traces-v2`, khoảng 320 MB, rồi kiểm sha256):
+
+```bash
+B=https://github.com/KatoTheFirst/SageServe-Group-4/releases/download/traces-v2
+for t in $(grep -o 'traces/[^ ]*_v2\.csv' traces/SHA256SUMS_v2); do curl -sSL $B/$(basename $t).gz | gunzip > $t; done
+curl -sSL $B/forecasts_v2.tar.gz | tar -xz
+curl -sSLO $B/SHA256SUMS_forecasts_v2
+tr -d '\r' < traces/SHA256SUMS_v2 | sha256sum -c && sha256sum -c SHA256SUMS_forecasts_v2
+```
+
+Khi mở terminal mới, kích hoạt lại môi trường (`source .venv/Scripts/activate` hoặc `conda activate sim`) và `export PYTHONIOENCODING=utf-8`.
+
+### 2. Lấy số cho bài tuần
+
+- **Số chính thức nằm ở [RESULTS.md](RESULTS.md)** (bản v2.1, code ở tag `v2.1-fix`). Chép số từ đó và ghi nguồn là tên dòng RESULTS. Không cần chạy lại nếu chỉ lấy số.
+- **Không dùng số, hình hay notebook cũ trước v2.1** (bài Tuần 5/6 trên code v2): cooldown đã sửa nên các dòng tiết kiệm Llama-2 đổi khoảng 5–9,5 điểm.
+- Dòng nào còn ghi **"(số v2, chờ chạy lại v2.1)"** (ba dòng `week`) thì chưa có số mới; nếu dùng, ghi rõ là số v2.
+
+Bảng dưới: tên thí nghiệm là tên dùng trong `experiments/run.sh`. Thời gian và RAM lấy từ nhật ký đợt chạy v2.1 (7–8/11/2026, laptop 12 nhân, 16 GB RAM, chạy chung 2–8 bài nên một bài chạy một mình có thể nhanh hơn). "không ghi": đợt đó không đo RAM từng bài.
+
+| Thí nghiệm (`run.sh`) | Mục bài báo | Dòng RESULTS | Đầu việc Plan | Thời gian 1 bài | RAM đỉnh 1 bài |
+|---|---|---|---|---|---|
+| `s4` (2 bài) | §4, Fig. 8, Table 1 | §4, Fig. 8a; §4, Table 1 | T23, T25, T43 | 7–9 phút | không ghi |
+| `lt` (4 bài) | §7.2.1–7.2.4, Fig. 11, 13 | §7.2.1–7.2.2 (dòng chính); §7.2.1; §7.2.2; §7.2.4 | T37, T39, T43 | 68–83 phút | không ghi |
+| `chiron` (1 bài) | §7.2.3 | §7.2.3 (3 dòng) | T49 | 35 phút | không ghi |
+| `scale5` (4 bài) | §7.2.5, Fig. 14 | §7.2.5 | T49 | 59–80 phút | 1,42–2,01 GB |
+| `sched` (8 bài) | §7.2.6, Fig. 15 | §7.2.6 (4 dòng) | – | 10 phút | không ghi |
+| `nov2024` (4 bài) | §7.2.7 (Nov 2024) | §7.2.7, Nov 2024 (2 dòng) | – | 47–76 phút | không ghi |
+| `burst` (4 bài) | §7.2.7, Fig. 16a | §7.2.7, Fig. 16a; §7.2.7 burst | T49 | 55–75 phút | 1,68–2,38 GB |
+| `week` (4 bài) | §7.2.7, Fig. 16b | §7.2.7 cả tuần (3 dòng, số v2) | T46 | chưa chạy ở v2.1 (v2: 9,0–11,4 giờ, 4 bài song song) | 3,68 GB (đo thử 45 phút đầu) |
+| `h100` (4 bài) | Phụ lục A | Phụ lục A: A100 so với H100 | – | 40–52 phút | 1,01–1,55 GB |
+| `niw_ratio` (8 bài) | Phụ lục A | Phụ lục A: IW:NIW | – | 9:1: 35–45 phút; 1:1: 91–96 phút | 9:1: 1,03–1,21 GB; 1:1: 1,97–3,38 GB |
+| `oracle` (12 bài) | không có (chẩn đoán dự báo) | các dòng "oracle", "oracle_smooth" | T47 | 37–77 phút | không ghi |
+| `beta`, `s4load`, `literal` | không có (chẩn đoán) | β; Table 1 theo mức tải §4; Reactive đúng chữ | T32, T46 | chưa chạy ở v2.1 (số v2) | – |
+| `sens`, `sens2` (lệnh `bash experiments/run_sens.sh sens\|sens2 <thư mục>`) | độ nhạy (Pha 3) | [SENSITIVITY.md](SENSITIVITY.md); §7.2.7 bản cắt; Phụ lục A khởi động 1200 s | T46 | sens 6–24 phút; sens2 14–27 phút | sens 0,37–0,81 GB; sens2 0,54–1,11 GB |
+
+### 3. Khi cần tự chạy một thí nghiệm
+
+```bash
+PY=python RESULTS_ROOT=<thư mục kết quả> bash experiments/run.sh <tên> [end_time]
+```
+
+- `<tên>`: một tên ở bảng mục 2. `end_time`: số giây mô phỏng, mặc định 86400 (1 ngày; `week` mặc định 604800). Mọi bài của một thí nghiệm chạy song song.
+- `PY`: lệnh Python của môi trường (mặc định `python`, dùng được khi đã kích hoạt venv/conda).
+- `RESULTS_ROOT`: nơi ghi kết quả, mặc định `results/` trong repo. Một bài cả ngày ghi khoảng 1 GB, `week` khoảng 30 GB cho 4 bài. Các đường dẫn `D:/...`, `E:/...` trong RESULTS.md là máy của An; **máy không có ổ D thì đặt `RESULTS_ROOT` sang ổ còn chỗ**, ví dụ `RESULTS_ROOT=C:/sage_results`, và thay `$R` trong lệnh phân tích bằng thư mục đó.
+- Kết quả: `<RESULTS_ROOT>/<tên>/<cấu hình>/` (ví dụ `results/lt/lt_ua/`). File quan trọng:
+  - `summary/`, `detailed/`, `memory/`: số liệu để phân tích và so bài. Bài quá ngắn như `s4 300` không có các thư mục này;
+  - `sage_env.txt`: commit code (`CODE_COMMIT`) và biến môi trường của bài, dùng để biết bài chạy trên code nào;
+  - `run.log` (dòng cuối `TraceSimulator completed at <giây>` là xong) và file `<cấu hình>.out` cạnh thư mục: nhật ký, xem khi lỗi.
+- Phân tích: dòng RESULTS nào cũng ghi lệnh phân tích ở cột cuối. Ví dụ §4, sau khi chạy `bash experiments/run.sh s4` đủ 1 ngày (đo: 12 phút cho 2 bài song song):
+
+  ```bash
+  python analyze_s4.py results/s4/unified results/s4/siloed --out results/s4_compare
+  ```
+
+  Mất vài giây. In bảng instance-hours, TTFT, E2E theo mô hình, lưu `compare_with_paper.csv` và hình vào `results/s4_compare`. Đúng khi dòng cuối là `Tổng instance-hours: {'unified:instance_hours': 411.2, 'siloed:instance_hours': 595.8} ...`, khớp dòng §4, Fig. 8a của RESULTS (411,25 so với 595,75). Với thí nghiệm 4 chiến lược (`lt`, `nov2024`…): `python analyze_s4.py $R/<tên>/reactive $R/<tên>/lt_i $R/<tên>/lt_u $R/<tên>/lt_ua --skip_hours 1 --out $R/<tên>/compare`, với `R` là `RESULTS_ROOT` của bạn.
+- So bài của mình với bài của nhóm (kết quả mô phỏng không có trên GitHub, xin An thư mục tương ứng): `python experiments/compare_runs.py <bài nhóm> <bài mình>`, ví dụ `python experiments/compare_runs.py <thư mục nhóm>/s4/unified results/s4/unified`. Đúng khi in `KẾT LUẬN: TRÙNG` (dòng "cấu hình khác ở: ['CODE_COMMIT']" là bình thường khi số trùng). In `KHÔNG TẤT ĐỊNH` (cùng cấu hình mà số khác) thì báo nhóm ngay.
+
+### 4. Quy tắc nhóm
+
+- Không commit thẳng vào `main`: tạo nhánh (`git checkout -b <tên-nhánh>`), đẩy lên, mở Pull Request.
+- Không sửa trace, θ (`data/theta_tps*.csv`), tham số mô phỏng. Muốn đổi thì nêu trong nhóm trước và ghi vào [DECISIONS.md](DECISIONS.md) trước khi có số.
+- Số đưa vào báo cáo/slide phải có nguồn: tên dòng RESULTS, hoặc lệnh đã chạy + đường dẫn file kết quả.
+- Một thư mục kết quả chỉ một tiến trình ghi: không chạy hai lệnh cùng `RESULTS_ROOT` và cùng tên thí nghiệm một lúc.
+
+### 5. Lỗi thường gặp
+
+| Hiện tượng | Cách xử lý |
+|---|---|
+| `sha256sum -c` báo `FAILED` cho mọi trace dù tải đủ | Git trên Windows lưu `traces/SHA256SUMS_v2` với CRLF. Dùng đúng lệnh có `tr -d '\r' <` như bước 3 |
+| `curl` báo lỗi tham số, hoặc `tr`/`sha256sum` không tồn tại | Đang ở PowerShell. Mở Git Bash và chạy lại |
+| `UnicodeEncodeError` khi in chữ Việt | `export PYTHONIOENCODING=utf-8` rồi chạy lại |
+| `run.sh` in `[-] Có bài lỗi trong <tên>` và trả mã ≠ 0 | Xem `<RESULTS_ROOT>/<tên>/<cấu hình>.out` và `<RESULTS_ROOT>/<tên>/<cấu hình>/run.log` của bài lỗi (dòng `Traceback` cuối) |
+| Máy chậm hẳn, RAM máy trên 90% | Mỗi bài cần 0,4–3,7 GB RAM (bảng mục 2). Thí nghiệm có 4–12 bài chạy song song: đóng ứng dụng khác, hoặc chạy thí nghiệm nhỏ trước (`s4`, `sched`). Số bài song song phải theo RAM, không theo số nhân |
+| Máy không có ổ D | Đặt `RESULTS_ROOT` sang ổ có chỗ (mục 3); không cần sửa file nào |
+
+### 6. Tài liệu tham khảo
+
+- [RESULTS.md](RESULTS.md): kết quả từng tuyên bố của bài báo, chấm điểm, lệnh tái tạo, mục Hạn chế.
+- [DECISIONS.md](DECISIONS.md): vì sao làm vậy (mỗi quyết định có ngày và bằng chứng).
+- [REPRODUCE.md](REPRODUCE.md): chạy lại toàn bộ (trace, θ, tham số, mọi thí nghiệm).
+- [PLAN_MAPPING.md](PLAN_MAPPING.md): đầu việc Plan 12 tuần ↔ file trong repo.
+- [CLAUDE.md](CLAUDE.md): luật làm việc của dự án.
+
+---
+
 ## Tái hiện bài báo SageServe
 
 Code trong repo đã được sửa để chạy theo bài báo SageServe (arXiv 2502.14617v3).
