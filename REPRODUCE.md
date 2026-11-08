@@ -102,7 +102,9 @@ Cắt giờ cao điểm: `python cut_trace.py traces/composed_day_3regions.csv 1
 
 `bash experiments/run.sh <tên> [end_time giây, mặc định 86400]`. Mỗi bài cả ngày ghi khoảng 1 GB, bài cả tuần khoảng 30 GB cho 4 bài;
 khi ổ chứa repo không đủ chỗ: `RESULTS_ROOT=D:/SageServe_results bash experiments/run.sh week`. Thời gian đo trên laptop 12 nhân: 4 bài song song cả ngày
-3 vùng ≈ 3 giờ; §4 cả ngày ≈ 1,5–3 giờ mỗi bài.
+3 vùng ≈ 3 giờ; §4 cả ngày ≈ 1,5–3 giờ mỗi bài (v2). v2.1 (nhóm B, chạy chung 1–4 bài): 1 bài cả ngày 3 vùng 40–95 phút; RAM đỉnh 1,55 GB (h100) đến 3,38 GB (IW:NIW 1:1) mỗi bài, nên số bài song song phải theo RAM chứ không theo số nhân.
+
+**v2.1 (8/11/2026):** số trong RESULTS.md chạy lại trên tag `v2.1-fix` (commit 2c70582; `run.py` ghi `CODE_COMMIT` và `CODE_DIFF_SHA256` vào `sage_env.txt` của từng bài). Nhóm chạy với `RESULTS_ROOT=D:/SageServe_results/v21` (mọi bài trừ `week`, `sens`, `sens2`), `week` vào `E:/SageServe_results_v21`, `sens`/`sens2` vào `E:/SageServe_results_v21/sens`, `.../sens2`. Đổi ổ theo máy mình; kết quả phải TRÙNG theo `python experiments/compare_runs.py <bài của nhóm> <bài của bạn>`. `week` và `sens`/`sens2` chưa có số v2.1 (dòng tương ứng ghi "số v2").
 
 **Số liệu hiện hành (trace v2): [RESULTS.md](RESULTS.md).** Mỗi tuyên bố của bài báo có giá trị bài báo, kết quả nhóm, chấm điểm, loại nguyên nhân và lệnh tái tạo. Quyết định và bằng chứng: [DECISIONS.md](DECISIONS.md). Toàn bộ: `PY=<python> RESULTS_ROOT=<thư mục> bash experiments/run_all.sh` (~11,5 giờ).
 
@@ -146,7 +148,7 @@ tối đa instance, NIW hoàn thành) trên kết quả bất kỳ. LT-I trượ
 | GPU | bài báo không nói rõ GPU của thí nghiệm chính → giữ A100 như code gốc; H100 cho Phụ lục A | — |
 | Độ trễ co giãn | instance mới phục vụ sau 600 s (khởi động) / ~60 s (lấy lại spot) – đặt ở allocator; code gốc để 0 (sẵn sàng tức thì). Trước 27/10 nhánh khởi động từ GPU spot của mô hình khác (`scaling_level: 2`) vẫn gọi `pre_start=True` nên lên tức thì | — |
 | ILP: số instance hiện có | đếm cả instance đang lấy lại spot / khởi động (trước 27/10 không đếm → ILP giao thêm máy trùng) | — |
-| Cooldown | chỉ 15 s giữa hai quyết định (§4); bỏ khoảng chờ "đến khi instance sẵn sàng" của code gốc (làm Reactive không tăng quá đà nên LT không còn lợi thế) | — |
+| Cooldown | 15 s giữa hai "scaling event" (§7.1), áp mọi chiến lược (D30, `v2.1-fix`): scaling event là một lần gọi `scale()` làm số instance của endpoint đổi (tính cả instance đang chờ: khởi động, lấy lại spot); mốc 15 s tính từ lúc quyết định, không chờ instance sẵn sàng; lần gọi không co giãn hoặc bị chặn không đặt lại mốc; biên `>` 15 s. Bỏ khoảng chờ "đến khi instance sẵn sàng" của code gốc | D30 |
 | Deployment đang co giãn | đếm cả instance đang lấy lại/khởi động (`arbiter.size`), không gộp/bớt deployment còn instance chờ, router bỏ qua deployment chưa phục vụ | — |
 | θ theo trace | θ đo riêng cho từng trace và GPU (mục 2) | `data/theta_tps_fork.csv`, `data/theta_tps_h100.csv` |
 | §7.2.6 | tranh chấp như bài báo (FCFS TTFT Q3 ~5,6 s): năng lực cố định 0,75 x Reactive | SLA IW-N 6 s là kịch bản phụ suy từ số liệu §7.2.6 |
