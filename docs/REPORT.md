@@ -1,3 +1,5 @@
+**Bản nháp, số chưa đối chiếu v2.1.**
+
 # BÁO CÁO NGHIÊN CỨU, CÀI ĐẶT VÀ ĐÁNH GIÁ SAGESERVE
 
 > [!NOTE]
