@@ -12,3 +12,4 @@
 6. **Việc ngoài danh sách đã duyệt: hỏi trước.** Kể cả bước phụ "dọn cho gọn"; không xóa hay ghi đè dữ liệu kết quả khi chưa được duyệt.
 7. **Một thư mục kết quả, một tiến trình ghi.** Trước khi khởi động một bài hoặc pytest, kiểm không có tiến trình cùng đích đang chạy; mỗi thư mục kết quả chỉ một tiến trình ghi.
 8. **Bị từ chối quyền thì dừng.** Lệnh bị từ chối quyền thì dừng và hỏi tôi; không dùng công cụ/shell khác để làm cùng việc.
+10. **Không tạo file .md mới ở thư mục gốc repo khi chưa được duyệt.** Kế hoạch, nhật ký, báo cáo tạm của phiên ghi vào `output/` (không đẩy lên repo). Tài liệu lâu dài đặt trong `docs/` và phải được dẫn từ README.

@@ -9,7 +9,7 @@ Viết cho người không đọc code. Mọi lệnh chạy trong **Git Bash** (
 
 | Bước | Lệnh | Mất bao lâu | Đúng khi |
 |---|---|---|---|
-| 1. Lấy code | Lần đầu: `git clone https://github.com/KatoTheFirst/SageServe-Group-4.git && cd SageServe-Group-4`. Đã có repo: `git checkout main && git pull`. Khi PR #2 chưa được gộp vào `main`, số v2.1 nằm ở nhánh `pha4-6-v2`: chạy thêm `git checkout pha4-6-v2` | dưới 1 phút (đo: 35 s) | Thư mục có `run.py`, `RESULTS.md` |
+| 1. Lấy code | Lần đầu: `git clone https://github.com/KatoTheFirst/SageServe-Group-4.git && cd SageServe-Group-4`. Đã có repo: `git checkout main && git pull` | dưới 1 phút (đo: 35 s) | Thư mục có `run.py`, `RESULTS.md` |
 | 2. Môi trường Python 3.11 | Cách A (venv): `py -3.11 -m venv .venv && source .venv/Scripts/activate` (không có `py`: thay `py -3.11` bằng đường dẫn tới `python.exe` 3.11). Cách B (conda): `conda create -n sim python=3.11 && conda activate sim`. Sau đó: `pip install -r requirements.txt` và `export PYTHONIOENCODING=utf-8` | khoảng 5 phút (đo: tạo venv 15 s, cài 4 phút 19 s khi pip đã có sẵn gói tải về; lần đầu có thể lâu hơn) | `python --version` in `Python 3.11.x`; `pip` không báo `ERROR` |
 | 3. Trace v2 và dự báo | 5 lệnh ngay dưới bảng | khoảng 1 phút (đo: 58 s) | Mọi dòng in `OK` (12 trace, 3 file θ, rồi các file dự báo), không dòng nào `FAILED` |
 | 4. Kiểm thử | `python -m pytest` | khoảng 5 phút (đo: 5 phút 9 giây) | Dòng cuối `101 passed`, không có `failed` |
