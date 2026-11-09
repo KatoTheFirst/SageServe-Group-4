@@ -1,6 +1,8 @@
+import hashlib
 import logging
 import os
 import random
+import subprocess
 import sys
 import shutil
 
@@ -18,6 +20,23 @@ from request import Request
 
 # register custom hydra resolver
 OmegaConf.register_new_resolver("eval", eval)
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def code_identity():
+    """Commit đang chạy và sha256 của `git diff HEAD` phần code (*.py, configs/, data/, experiments/), ghi vào sage_env.txt
+    để compare_runs.py thấy hai bài khác code dù cùng override (D29: trước đây chỉ đối chiếu override và SAGE_*).
+    File chưa track không nằm trong diff. Không có git thì ghi 'unknown'."""
+    def git(*args):
+        try:
+            return subprocess.run(["git", *args], cwd=ROOT_DIR, capture_output=True, check=True).stdout
+        except (OSError, subprocess.CalledProcessError):
+            return None
+    commit = git("rev-parse", "HEAD")
+    diff = git("diff", "HEAD", "--", "*.py", "configs", "data", "experiments")
+    return {"CODE_COMMIT": commit.decode().strip() if commit else "unknown",
+            "CODE_DIFF_SHA256": hashlib.sha256(diff).hexdigest() if diff is not None else "unknown"}
 
 
 def run_simulation(cfg):
@@ -65,9 +84,10 @@ def run(cfg: DictConfig) -> None:
     # delete existing oom.csv if any
     if os.path.exists("oom.csv"):
         os.remove("oom.csv")
-    # biến SAGE_* (bản vá của experiments/run_patched.py) không nằm trong .hydra; ghi lại để compare_runs.py đối chiếu cấu hình
+    # biến SAGE_* (bản vá của experiments/run_patched.py) và danh tính code không nằm trong .hydra; ghi lại để compare_runs.py đối chiếu
     with open("sage_env.txt", "w", encoding="utf-8") as f:
         f.writelines(f"{k}={v}\n" for k, v in sorted(os.environ.items()) if k.startswith("SAGE_"))
+        f.writelines(f"{k}={v}\n" for k, v in code_identity().items())
     # for c in os.listdir('.'):
     #     if os.path.isdir(c):
     #         shutil.rmtree(c)

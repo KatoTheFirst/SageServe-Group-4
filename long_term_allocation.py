@@ -9,9 +9,10 @@ Ràng buộc:
 Mục tiêu: min γ + μ,  γ = Σ α[k] · δ (chi phí VM),  μ = Σ σ[i][k] · max(δ, 0) (chi phí khởi động mô hình).
 """
 import datetime
+import logging
 from typing import List
 
-from pulp import LpMinimize, LpProblem, LpVariable, PULP_CBC_CMD, lpSum
+from pulp import LpMinimize, LpProblem, LpStatus, LpVariable, PULP_CBC_CMD, lpSum
 
 from simulator import clock
 
@@ -57,7 +58,11 @@ class MilpLongTermAllocation:
         prob += lpSum(self.gpu_cost[k] * delta[(i, j, k)] + self.startup_cost[i][k] * pos[(i, j, k)] for i, j, k in idx)
         if path:
             prob.writeLP(f"{path}/../../ilp_outputs/my_output_at_{clock()}.lp")
-        prob.solve(PULP_CBC_CMD(msg=0))
+        status = prob.solve(PULP_CBC_CMD(msg=0))
+        if LpStatus.get(status) != "Optimal":
+            # §5 dùng "optimal number of changes": không có nghiệm tối ưu thì giữ cấu hình hiện tại (δ = 0) và cảnh báo (D30)
+            logging.warning(f"ILP không có nghiệm tối ưu (trạng thái {LpStatus.get(status, status)}): giữ cấu hình hiện tại")
+            return [[[0] * self.gpus for _ in range(self.models)] for _ in range(self.regions)]
         return [[[round(delta[(i, j, k)].value()) for k in range(self.gpus)] for i in range(self.models)]
                 for j in range(self.regions)]
 

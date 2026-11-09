@@ -17,7 +17,9 @@ run() {  # run <thư mục kết quả> <override...>
   local out=$1; shift
   mkdir -p "$(dirname "$out")"
   $PY run.py $PERF end_time=$END output_dir=$out "$@" > $out.out 2>&1 &
+  PIDS+=("$!")
 }
+PIDS=()
 lt_runs() {  # lt_runs <trace> <thư mục> [controller]
   local T=$1 D=$2 C=${3:-us3-4models}
   local COMMON="trace=random_trace trace.filename=$T controller=$C global_arbiter.arima_traces=traces/forecasts/$T $THETA"
@@ -52,6 +54,7 @@ case $EXP in
       SAGE_BETA=$b $PY experiments/run_patched.py $PERF end_time=$END output_dir=$out trace=random_trace trace.filename=composed_day_3regions_v2 \
         controller=us3-4models global_arbiter.arima_traces=traces/forecasts/composed_day_3regions_v2 $THETA long_term_scaling=True \
         $(arb global_arbiter_ARIMA_checking) > $out.out 2>&1 &
+      PIDS+=("$!")
     done ;;
   s4load)     # chẩn đoán Table 1: §4 Unified với tải đúng §4 (1,4M IW/ngày), mọi thứ khác như s4 (cần traces/diag_fork_s4_westus_load.csv, xem RESULTS.md)
     run $ROOT/s4load/unified trace=random_trace trace.filename=diag_fork_s4_westus_load scaling_level=1 controller=us1-4models ;;
@@ -61,7 +64,8 @@ case $EXP in
     out=$ROOT/literal/reactive_literal; mkdir -p "$(dirname "$out")"
     SAGE_LITERAL=1 $PY experiments/run_patched.py $PERF end_time=$END output_dir=$out trace=random_trace \
       trace.filename=composed_day_3regions_v2 controller=us3-4models global_arbiter.arima_traces=traces/forecasts/composed_day_3regions_v2 \
-      $THETA long_term_scaling=False > $out.out 2>&1 & ;;
+      $THETA long_term_scaling=False > $out.out 2>&1 &
+    PIDS+=("$!") ;;
   sched)      # §7.2.6, Fig. 15: FCFS / EDF / PF / DPA, trace chính 3 vùng giờ 12–15h, năng lực cố định để có tranh chấp
               # như bài báo (FCFS TTFT Q3 ~5,6 s); 2 kịch bản SLA IW-N: 60 s (§2.2) và 6 s (suy từ số liệu §7.2.6)
     for sc in "composed_day_3regions_12to15_v2 sla60" "composed_day_3regions_12to15_iwn6_v2 sla6"; do
@@ -88,5 +92,13 @@ case $EXP in
     lt_runs composed_day_3regions_niw1_v2 $ROOT/niw1 ;;
   *) echo "Tên thí nghiệm không hợp lệ: $EXP"; exit 1 ;;
 esac
-wait
+# trả mã lỗi nếu có bài con lỗi (D30, theo patch T24 của Đoàn Việt Đức)
+status=0
+for pid in "${PIDS[@]}"; do
+  wait "$pid" || status=1
+done
+if [ "$status" -ne 0 ]; then
+  echo "[-] Có bài lỗi trong $EXP; xem các file .out trong $ROOT" >&2
+  exit "$status"
+fi
 echo "[+] Xong $EXP"
