@@ -1,3 +1,5 @@
+**Bản nháp, số chưa đối chiếu v2.1.**
+
 # BÁO CÁO NGHIÊN CỨU, CÀI ĐẶT VÀ ĐÁNH GIÁ SAGESERVE
 
 > [!NOTE]
@@ -99,16 +101,16 @@ SageServe/
 
 | Thành phần / Module | Tệp mã nguồn | Vai trò Kiến trúc & Hành vi Thực thi |
 | :--- | :--- | :--- |
-| **Main CLI Entry Point** | [`run.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/run.py) | Điểm vào chính của toàn bộ hệ thống. Sử dụng `@hydra.main(config_path="configs", config_name="config")`, đăng ký hàm giải quyết `eval`, gán seed, gọi `run_simulation(cfg)` để khởi tạo toàn bộ hạ tầng và kích hoạt `sim.run()`. |
-| **LTS Solver Entry Point** | [`run_lts.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/run_lts.py) | Điểm vào chuyên biệt cho bài toán Long-Term Scaling. Tự động thêm đường dẫn xuất timestamp `results/YYYY_MM_DD/HH_MM_SS/` vào `sys.argv`, gọi PuLP MILP solver định kỳ mỗi 1 giờ mô phỏng ($t=0, 3600, 7200$), và lưu cấu hình `config.yaml` sau khi hoàn thành. |
-| **Infrastructure Factory** | [`initialize.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/initialize.py) | "Nhà máy" dependency injection: Đọc cấu hình Hydra và khởi tạo toàn bộ các Repository, Controller, GlobalRouter, Regions, RegionClusters, ModelEndpointRouters, Arbiters, Trace, PerformanceModel, và PowerModel. |
-| **Discrete Event Simulator** | [`simulator.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/simulator.py) | Triển khai `Simulator` (quản lý hàng đợi ưu tiên min-heap các sự kiện `Event`) và `TraceSimulator` (nạp trace theo lô `load_trace_batch`, quản lý hàng đợi `arrival_queue`, điều phối `feed_async`, và định kỳ mỗi 3600 giây mô phỏng gọi `save_results_intermediate` để xuất `summary/{itr}.csv`). |
-| **Trace Workload Parser** | [`trace.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/trace.py) | Phân tích cú pháp tệp CSV vết tải qua `Trace.from_csv()`, tạo các đối tượng `Request` chứa `arrival_timestamp`, `prompt_size`, `token_size`, `workload_type` (`prod`/`dev`), và danh sách độ ưu tiên vùng `region_priority`. |
-| **Global Router** | [`global_router.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/global_router.py) | Tiếp nhận request từ `TraceSimulator`. Nếu request là `prod`, định tuyến tới vùng tốt nhất (theo xác suất hoặc độ ưu tiên vùng nếu bộ nhớ GPU vùng $< 70\%$). Nếu request là `dev` hoặc batch, đẩy vào các bộ đệm `opp` và `batch_prod` để chờ Arbiter kích hoạt qua `feed_async`. |
-| **Region & Cluster Hierarchy** | [`controller.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/controller.py)<br>[`region.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/region.py)<br>[`region_cluster.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/region_cluster.py) | Quản lý phân cấp vật lý từ bộ điều khiển toàn cục xuống 3 vùng địa lý (`eastus`, `centralus`, `westus`), mỗi vùng quản lý các máy chủ vật lý `Server` (mỗi máy 8 GPU A100-80GB) và Arbiter cục bộ. |
-| **Model Endpoint & Autoscaler** | [`model_endpoint_router.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/model_endpoint_router.py) | Quản lý các replica instance của từng model trong vùng. Triển khai thuật toán lập lịch **Token-JSQ** (Join the Shortest Queue tính theo số lượng token đang chờ). Thực hiện logic co giãn phản ứng (`scale_up`, `scale_down`, `reclaim_spot`) với chu kỳ cooldown `scaling_interval` (15 giây). |
-| **Local & Global Arbiters** | [`arbiter.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/arbiter.py)<br>[`global_arbiter.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/global_arbiter.py) | Quản lý phân bổ tài nguyên: `BasicArbiter` (co giãn theo tải tức thời); `GlobalArbiterARIMAChecking` (so sánh dự báo ARIMA 60 phút với tải thực tế để quyết định chèn request dev); `MilpGlobalArbiter` (thiết lập bài toán tối ưu phân bổ GPU giữa các vùng và model bằng PuLP MILP). |
-| **Performance Model** | [`performance_model.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/performance_model.py) | Mô hình hóa độ trễ tính toán TTFT (Time To First Token) và TBT (Time Between Tokens) bằng cách tra cứu cơ sở dữ liệu thực nghiệm [`data/perf_model.csv`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/data/perf_model.csv) đo đạc trực tiếp trên cụm GPU A100-80GB. |
+| **Main CLI Entry Point** | [`run.py`](../run.py) | Điểm vào chính của toàn bộ hệ thống. Sử dụng `@hydra.main(config_path="configs", config_name="config")`, đăng ký hàm giải quyết `eval`, gán seed, gọi `run_simulation(cfg)` để khởi tạo toàn bộ hạ tầng và kích hoạt `sim.run()`. |
+| **LTS Solver Entry Point** | [`run_lts.py`](../run_lts.py) | Điểm vào chuyên biệt cho bài toán Long-Term Scaling. Tự động thêm đường dẫn xuất timestamp `results/YYYY_MM_DD/HH_MM_SS/` vào `sys.argv`, gọi PuLP MILP solver định kỳ mỗi 1 giờ mô phỏng ($t=0, 3600, 7200$), và lưu cấu hình `config.yaml` sau khi hoàn thành. |
+| **Infrastructure Factory** | [`initialize.py`](../initialize.py) | "Nhà máy" dependency injection: Đọc cấu hình Hydra và khởi tạo toàn bộ các Repository, Controller, GlobalRouter, Regions, RegionClusters, ModelEndpointRouters, Arbiters, Trace, PerformanceModel, và PowerModel. |
+| **Discrete Event Simulator** | [`simulator.py`](../simulator.py) | Triển khai `Simulator` (quản lý hàng đợi ưu tiên min-heap các sự kiện `Event`) và `TraceSimulator` (nạp trace theo lô `load_trace_batch`, quản lý hàng đợi `arrival_queue`, điều phối `feed_async`, và định kỳ mỗi 3600 giây mô phỏng gọi `save_results_intermediate` để xuất `summary/{itr}.csv`). |
+| **Trace Workload Parser** | [`trace.py`](../trace.py) | Phân tích cú pháp tệp CSV vết tải qua `Trace.from_csv()`, tạo các đối tượng `Request` chứa `arrival_timestamp`, `prompt_size`, `token_size`, `workload_type` (`prod`/`dev`), và danh sách độ ưu tiên vùng `region_priority`. |
+| **Global Router** | [`global_router.py`](../global_router.py) | Tiếp nhận request từ `TraceSimulator`. Nếu request là `prod`, định tuyến tới vùng tốt nhất (theo xác suất hoặc độ ưu tiên vùng nếu bộ nhớ GPU vùng $< 70\%$). Nếu request là `dev` hoặc batch, đẩy vào các bộ đệm `opp` và `batch_prod` để chờ Arbiter kích hoạt qua `feed_async`. |
+| **Region & Cluster Hierarchy** | [`controller.py`](../controller.py)<br>[`region.py`](../region.py)<br>[`region_cluster.py`](../region_cluster.py) | Quản lý phân cấp vật lý từ bộ điều khiển toàn cục xuống 3 vùng địa lý (`eastus`, `centralus`, `westus`), mỗi vùng quản lý các máy chủ vật lý `Server` (mỗi máy 8 GPU A100-80GB) và Arbiter cục bộ. |
+| **Model Endpoint & Autoscaler** | [`model_endpoint_router.py`](../model_endpoint_router.py) | Quản lý các replica instance của từng model trong vùng. Triển khai thuật toán lập lịch **Token-JSQ** (Join the Shortest Queue tính theo số lượng token đang chờ). Thực hiện logic co giãn phản ứng (`scale_up`, `scale_down`, `reclaim_spot`) với chu kỳ cooldown `scaling_interval` (15 giây). |
+| **Local & Global Arbiters** | [`arbiter.py`](../arbiter.py)<br>[`global_arbiter.py`](../global_arbiter.py) | Quản lý phân bổ tài nguyên: `BasicArbiter` (co giãn theo tải tức thời); `GlobalArbiterARIMAChecking` (so sánh dự báo ARIMA 60 phút với tải thực tế để quyết định chèn request dev); `MilpGlobalArbiter` (thiết lập bài toán tối ưu phân bổ GPU giữa các vùng và model bằng PuLP MILP). |
+| **Performance Model** | [`performance_model.py`](../performance_model.py) | Mô hình hóa độ trễ tính toán TTFT (Time To First Token) và TBT (Time Between Tokens) bằng cách tra cứu cơ sở dữ liệu thực nghiệm [`data/perf_model.csv`](../data/perf_model.csv) đo đạc trực tiếp trên cụm GPU A100-80GB. |
 
 ---
 
@@ -173,7 +175,7 @@ sequenceDiagram
 - **Kết quả**: `No broken requirements found.`
 - **5 package bổ sung khi cài `statsmodels`**: `statsmodels==0.15.0`, `patsy==1.0.3`, `formulaic==1.2.2`, `narwhals==2.27.1`, `interface-meta==2.0.1`.
 - Các gói lõi không thay đổi phiên bản: `numpy==1.25.2`, `pandas==2.0.3`, `scipy==1.11.3`, `PuLP==2.9.0`.
-- Pin vào [`requirements-extra.txt`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/requirements-extra.txt) trên branch `synthetic-tools`.
+- Pin vào `requirements-extra.txt` trên branch `synthetic-tools`.
 
 ---
 
@@ -190,14 +192,14 @@ git diff --stat main local-fixes
  2 files changed, 5 insertions(+), 2 deletions(-)
 ```
 
-Đã xuất bản vá chuẩn hóa: [`patches/0001-fix-minimal-local-fixes-for-2-model-controllers-and-.patch`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/patches/0001-fix-minimal-local-fixes-for-2-model-controllers-and-.patch) (chi tiết tại Phụ lục A).
+Đã xuất bản vá chuẩn hóa: `patches/0001-fix-minimal-local-fixes-for-2-model-controllers-and-.patch` (chi tiết tại Phụ lục A).
 
 ### 3.2. Chi tiết 2 Bản vá Tối thiểu trên `local-fixes`
 
 | Tệp sửa đổi | Dòng sửa | Lỗi gốc nguyên văn (Verbatim Error) | Mã áp dụng | Ảnh hưởng hành vi |
 | :--- | :---: | :--- | :--- | :--- |
-| [global_arbiter.py](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/global_arbiter.py#L100) | 100 | `AssertionError: Model TPS should have dimensions 2x1, got 4 as first dimension` | `model_tps=[...][:self.models]` | **CÓ THAY ĐỔI HÀNH VI**: Giảm số hàng của ma trận `model_tps` từ 4 model xuống 2 model cho phù hợp với controller `us3` (chỉ có Llama2-70b và Bloom-176b); cần thiết để PuLP solver không bị dừng đột ngột. |
-| [initialize.py](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/initialize.py#L154-L157) | 154-157 | `TypeError: Arbiter.__init__() got an unexpected keyword argument 'scaling_threshhold'` | Bọc điều kiện: chỉ truyền `scaling_threshhold` khi `arbiter == "global_arbiter_ARIMA_checking"` | **KHÔNG ĐỔI HÀNH VI**: Chỉ bảo đảm các arbiter khác (`basic_arbiter`, `noop`, `memory_utilization`) không bị ném ngoại lệ khi khởi tạo. |
+| [global_arbiter.py](../global_arbiter.py#L100) | 100 | `AssertionError: Model TPS should have dimensions 2x1, got 4 as first dimension` | `model_tps=[...][:self.models]` | **CÓ THAY ĐỔI HÀNH VI**: Giảm số hàng của ma trận `model_tps` từ 4 model xuống 2 model cho phù hợp với controller `us3` (chỉ có Llama2-70b và Bloom-176b); cần thiết để PuLP solver không bị dừng đột ngột. |
+| [initialize.py](../initialize.py#L154-L157) | 154-157 | `TypeError: Arbiter.__init__() got an unexpected keyword argument 'scaling_threshhold'` | Bọc điều kiện: chỉ truyền `scaling_threshhold` khi `arbiter == "global_arbiter_ARIMA_checking"` | **KHÔNG ĐỔI HÀNH VI**: Chỉ bảo đảm các arbiter khác (`basic_arbiter`, `noop`, `memory_utilization`) không bị ném ngoại lệ khi khởi tạo. |
 
 ### 3.3. Các Workaround không sửa mã upstream
 1. **`run_lts.py:L71`**: `os.remove(cfg.output_dir)` ném lỗi `PermissionError` trên Windows khi thư mục tồn tại. Workaround: Xóa trước bằng PowerShell `if (Test-Path $out) { Remove-Item -Recurse -Force $out }`. Xác nhận: `git diff main -- run_lts.py` hoàn toàn rỗng.
@@ -234,8 +236,8 @@ Nhằm khắc phục triệt để hạn chế của dữ liệu tổng hợp, c
   - Trace Code: `AzureLLMInferenceTrace_code_1week.csv`
   - Trace Conversation: `AzureLLMInferenceTrace_conv_1week.csv`
 - **Công cụ Thu thập & Chuẩn hóa**:
-  1. [`download_azure_traces.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/download_azure_traces.py): Sử dụng HTTP Range Header (`bytes=0-15728640` và `bytes=0-18874368`) để tải trực tiếp khối dữ liệu 3 giờ đầu tiên từ GitHub Releases mà không cần tải toàn bộ tệp 1 tuần nặng nhiều GB.
-  2. [`convert_azure_to_sageserve.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/convert_azure_to_sageserve.py): Chuẩn hóa các trường thời gian `TIMESTAMP` thành `arrival_timestamp` (giây), gán `bloom-176b` cho trace code và `llama2-70b` cho trace conversation, ánh xạ `ContextTokens` thành `prompt_size` và `GeneratedTokens` thành `token_size`. Thiết lập tỷ lệ thực tế **70% prod (tương tác trực tuyến, SLA=10s) và 30% dev (không tương tác, SLA=-1)** trên 3 vùng địa lý.
+  1. [`download_azure_traces.py`](../download_azure_traces.py): Sử dụng HTTP Range Header (`bytes=0-15728640` và `bytes=0-18874368`) để tải trực tiếp khối dữ liệu 3 giờ đầu tiên từ GitHub Releases mà không cần tải toàn bộ tệp 1 tuần nặng nhiều GB.
+  2. [`convert_azure_to_sageserve.py`](../convert_azure_to_sageserve.py): Chuẩn hóa các trường thời gian `TIMESTAMP` thành `arrival_timestamp` (giây), gán `bloom-176b` cho trace code và `llama2-70b` cho trace conversation, ánh xạ `ContextTokens` thành `prompt_size` và `GeneratedTokens` thành `token_size`. Thiết lập tỷ lệ thực tế **70% prod (tương tác trực tuyến, SLA=10s) và 30% dev (không tương tác, SLA=-1)** trên 3 vùng địa lý.
 
 | Thuộc tính | Giá trị Thực tế trên `traces/azure_trace_3h.csv` |
 | :--- | :--- |
@@ -251,7 +253,7 @@ Nhằm khắc phục triệt để hạn chế của dữ liệu tổng hợp, c
 
 ### 4.3. Pipeline Tiền Xử Lý Vết Tải Nâng Cao (IW-F, IW-N, NIW; 3 Vùng; 4 Mô Hình)
 
-Để phục vụ nghiên cứu sâu hơn về thuật toán điều phối đa lớp tải và đánh giá khả năng mở rộng của SageServe trên cấu hình hệ thống lớn hơn, chúng tôi đã phát triển pipeline tiền xử lý toàn diện [`preprocess_traces.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/preprocess_traces.py).
+Để phục vụ nghiên cứu sâu hơn về thuật toán điều phối đa lớp tải và đánh giá khả năng mở rộng của SageServe trên cấu hình hệ thống lớn hơn, chúng tôi đã phát triển pipeline tiền xử lý toàn diện [`preprocess_traces.py`](../preprocess_traces.py).
 
 #### 1. Mô hình Hóa 3 Phân Lớp Tải Công Việc (Workload Classes)
 Theo sát thiết kế lý thuyết và thực nghiệm trong bài báo khoa học của SageServe, các truy vấn LLM được phân chia thành 3 phân lớp đặc thù:
@@ -266,8 +268,8 @@ Hạ tầng mô phỏng SageServe gồm 3 vùng địa lý: Vùng 0 (`westus`), 
 
 #### 3. Phân Bổ 4 Mô Hình LLM (Models) & Hỗ Trợ Đa Hệ Đặt Tên
 Pipeline hỗ trợ đồng thời 4 mô hình LLM theo trọng số thực tế `[0.35, 0.25, 0.25, 0.15]`:
-- **Hệ Định Danh Canonical**: `llama2-70b` (35%), `bloom-176b` (25%), `llama3.1-8b` (25%), `llama3.2-3b` (15%). Tương thích với cấu hình bộ điều khiển [`configs/controller/us3-4models.yaml`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/configs/controller/us3-4models.yaml).
-- **Hệ Định Danh Symbolic**: `A` (35%), `B` (25%), `C` (25%), `D` (15%). Tương thích nguyên bản với cấu hình bộ điều khiển 4 mô hình gốc của tác giả [`configs/controller/us3-new.yaml`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/configs/controller/us3-new.yaml).
+- **Hệ Định Danh Canonical**: `llama2-70b` (35%), `bloom-176b` (25%), `llama3.1-8b` (25%), `llama3.2-3b` (15%). Tương thích với cấu hình bộ điều khiển [`configs/controller/us3-4models.yaml`](../configs/controller/us3-4models.yaml).
+- **Hệ Định Danh Symbolic**: `A` (35%), `B` (25%), `C` (25%), `D` (15%). Tương thích nguyên bản với cấu hình bộ điều khiển 4 mô hình gốc của tác giả [`configs/controller/us3-new.yaml`](../configs/controller/us3-new.yaml).
 
 #### 4. Cơ Chế Tự Động Kéo Dài Chu Kỳ Thời Gian (Auto-Extending Multi-Day Cycles)
 Khi tạo các vết tải dài nhiều ngày (ví dụ 48 giờ) từ các mẫu trace thô ngắn hơn, script tự động:
@@ -298,7 +300,7 @@ python preprocess_traces.py --code traces/raw_azure/AzureLLMInferenceTrace_code_
 ### 4.4. Bộ Kiểm Tra Tính Hợp Lệ (Validation Suite) & Thống Kê Tập Dev Nhỏ (1–2 Ngày)
 
 #### 1. Bộ Kiểm Tra Toàn Diện (`validate_trace.py`)
-Tệp [`validate_trace.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/validate_trace.py) được xây dựng để thẩm định 9 tiêu chí nghiêm ngặt trước khi nạp vết tải vào mô phỏng:
+Tệp [`validate_trace.py`](../validate_trace.py) được xây dựng để thẩm định 9 tiêu chí nghiêm ngặt trước khi nạp vết tải vào mô phỏng:
 1. **Schema Integrity**: Đủ chính xác 15 cột bắt buộc theo `Trace.from_csv` (`request_id`, `batch_id`, `client_tenant`, `request_type`, `scenario`, `sla`, `utility`, `regions`, `model_type`, `workload_type`, `application_id`, `arrival_timestamp`, `batch_size`, `prompt_size`, `token_size`).
 2. **Missing Values**: Hoàn toàn không chứa giá trị rỗng (`NaN`, `None`, `null`).
 3. **Arrival Timestamps**: Tất cả timestamp $\ge 0.0$ và tăng đơn điệu chặt chẽ ($\Delta t \ge 0$).
@@ -306,7 +308,7 @@ Tệp [`validate_trace.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%2
 5. **Region Priority Strings**: Chuỗi 3 ký tự hợp lệ thuộc tập `{0, 1, 2}`.
 6. **Workload Compatibility**: Thuộc tập chuẩn `{"prod", "dev"}`.
 7. **Scenario Compatibility**: Mặc định `"default"`.
-8. **End-to-end Load Test**: Kiểm thử nạp trực tiếp qua lớp [`Trace.from_csv()`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/trace.py).
+8. **End-to-end Load Test**: Kiểm thử nạp trực tiếp qua lớp [`Trace.from_csv()`](../trace.py).
    > [!NOTE]
    > **Khắc phục Bẫy Runtime trong Validator**: Trong `trace.py:L44`, phương thức `populate_requests()` gọi hàm `clock()`. Hàm này truy cập biến toàn cục `simulator.sim.time`. Nếu chạy ngoài vòng lặp `Simulator`, `simulator.sim` mang giá trị `None`, dẫn đến lỗi `AttributeError: 'NoneType' object has no attribute 'time'`. Validator chủ động bọc mock `simulator.sim = type('DummySim', (), {'time': 0.0})()` để cho phép kiểm thử nạp độc lập 100% an toàn.
 
@@ -331,12 +333,12 @@ Tất cả 4 tập dữ liệu đã vượt qua 100% các tiêu chí kiểm tra 
 
 #### 3. Hạ Tầng Mở Rộng Hỗ Trợ 4 Mô Hình (4-Model Infrastructure Integration)
 Để hỗ trợ mô phỏng liền mạch trên cả hai hệ định danh 4 mô hình:
-1. **Cơ sở dữ liệu Hiệu năng Mở rộng** [`data/perf_model_4models.csv`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/data/perf_model_4models.csv):
+1. **Cơ sở dữ liệu Hiệu năng Mở rộng** [`data/perf_model_4models.csv`](../data/perf_model_4models.csv):
    - Chứa thông số TTFT/TBT cho cả 8 khóa định danh: `['llama2-70b', 'bloom-176b', 'llama3.1-8b', 'llama3.2-3b', 'A', 'B', 'C', 'D']`.
    - Ngăn ngừa hoàn toàn lỗi `KeyError` khi `PerformanceModel` tra cứu bảng độ trễ GPU A100.
 2. **Cấu hình Bộ Điều Khiển Phù Hợp**:
    - Chạy với mô hình Symbolic: Dùng cấu hình gốc `controller=us3-new`.
-   - Chạy với mô hình Canonical: Dùng cấu hình [`configs/controller/us3-4models.yaml`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/configs/controller/us3-4models.yaml) kết hợp hai tệp cấu hình ứng dụng bổ trợ [`configs/application_repo/applications/llama3.1-8b.yaml`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/configs/application_repo/applications/llama3.1-8b.yaml) và [`llama3.2-3b.yaml`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/configs/application_repo/applications/llama3.2-3b.yaml).
+   - Chạy với mô hình Canonical: Dùng cấu hình [`configs/controller/us3-4models.yaml`](../configs/controller/us3-4models.yaml) kết hợp hai tệp cấu hình ứng dụng bổ trợ [`configs/application_repo/applications/llama3.1-8b.yaml`](../configs/application_repo/applications/llama3.1-8b.yaml) và [`llama3.2-3b.yaml`](../configs/application_repo/applications/llama3.2-3b.yaml).
 3. **Kiểm Chứng Mô Phỏng Thực Tế**:
    - Cả 2 cấu hình đã được chạy thử nghiệm thành công 1800 giây mô phỏng (Exit code 0, hoàn tất tại $t=1801.0\text{s}$), xác nhận tính tương thích tuyệt đối của trace dev mới với động cơ mô phỏng của SageServe.
 
@@ -346,7 +348,7 @@ Tất cả 4 tập dữ liệu đã vượt qua 100% các tiêu chí kiểm tra 
 
 ### 5.1. Cơ sở Toán học & Đối chiếu Notebook
 
-Trong [`notebooks/arima_modeling.ipynb`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/notebooks/arima_modeling.ipynb), mã nguồn tác giả định nghĩa việc gom nhóm theo từng phút và khớp mô hình ARIMA:
+Trong [`notebooks/arima_modeling.ipynb`](../notebooks/arima_modeling.ipynb), mã nguồn tác giả định nghĩa việc gom nhóm theo từng phút và khớp mô hình ARIMA:
 - **Cell 10** (Khớp model Llama-2):
   ```python
   model = ARIMA(df.prompt_size, order=(3,1,2))
@@ -356,7 +358,7 @@ Trong [`notebooks/arima_modeling.ipynb`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%
   model = ARIMA(df.prompt_size, order=(3,1,3))
   ```
 
-Script [`generate_causal_arima_forecasts.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/generate_causal_arima_forecasts.py) triển khai thuật toán tìm kiếm bậc tối ưu theo tiêu chuẩn thông tin Akaike (AIC) trên không gian ứng viên `[(3,1,2), (3,1,3), (2,1,1), (1,1,1), (1,0,1)]` trên cửa sổ trượt 60 phút và tự động lựa chọn bậc tối ưu hội tụ được.
+Script [`generate_causal_arima_forecasts.py`](../generate_causal_arima_forecasts.py) triển khai thuật toán tìm kiếm bậc tối ưu theo tiêu chuẩn thông tin Akaike (AIC) trên không gian ứng viên `[(3,1,2), (3,1,3), (2,1,1), (1,1,1), (1,0,1)]` trên cửa sổ trượt 60 phút và tự động lựa chọn bậc tối ưu hội tụ được.
 
 ### 5.2. Đảm bảo Tính Nhân quả Tuyệt đối (No Look-ahead Leak)
 - **Cửa sổ huấn luyện**: Với mỗi bước dự báo tại thời điểm $T$, mô hình chỉ được phép nhìn dữ liệu lịch sử trong khoảng $[T - 3600, T - 60]$.
@@ -366,8 +368,8 @@ Script [`generate_causal_arima_forecasts.py`](file:///e:/SageServe_Chuy%C3%AAn%2
 ### 5.3. Đơn vị Cột `Predicted`
 - Cột `Predicted` trong các tệp CSV dự báo có đơn vị là **Tokens Per Minute (TPM)** tính trên bin 60 giây.
 - Đơn vị này tương thích 100% với:
-  1. [`global_arbiter.py:L100`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/global_arbiter.py#L100): `model_tps=[[30*7516.67], [30*5398.07]]`, trong đó hệ số 30 tương đương 50% công suất an toàn trong 60 giây để so sánh trực tiếp với peak token dự báo.
-  2. [`arbiter.py:L568`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/arbiter.py#L568): `ratio = self.tokens_last_minute / predicted_tokens` tính tỷ lệ giữa số token đến trong 1 phút vừa qua và lượng token dự báo cho phút đó.
+  1. [`global_arbiter.py:L100`](../global_arbiter.py#L100): `model_tps=[[30*7516.67], [30*5398.07]]`, trong đó hệ số 30 tương đương 50% công suất an toàn trong 60 giây để so sánh trực tiếp với peak token dự báo.
+  2. [`arbiter.py:L568`](../arbiter.py#L568): `ratio = self.tokens_last_minute / predicted_tokens` tính tỷ lệ giữa số token đến trong 1 phút vừa qua và lượng token dự báo cho phút đó.
 
 ### 5.4. Danh mục 12 Tệp Dự báo trong `traces/forecasts/`
 
@@ -379,7 +381,7 @@ Script [`generate_causal_arima_forecasts.py`](file:///e:/SageServe_Chuy%C3%AAn%2
 - `final_bloom-176b_prod_1minute_region1_arima.csv` (Order: `(1,1,1)`, AIC: 1405.12)
 - `final_bloom-176b_prod_1minute_region2_arima.csv` (Order: `(3,1,3)`, AIC: 1389.78)
 - 6 tệp dev exact trace tương ứng cho 3 vùng của cả 2 mô hình.
-- Tệp metadata xác thực: [`traces/forecasts/metadata.json`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/traces/forecasts/metadata.json) và [`traces/forecasts/metadata.csv`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/traces/forecasts/metadata.csv).
+- Tệp metadata xác thực: `traces/forecasts/metadata.json` và `traces/forecasts/metadata.csv`.
 
 ---
 
@@ -472,9 +474,9 @@ Trích xuất từ cả 3 tệp `summary/0.csv` (Giờ 1), `summary/1.csv` (Gi�
 ## 7. Phân tích Chuyên sâu Mã nguồn & Kiểm chứng Cơ chế
 
 ### 7.1. Reactive Scaling: Ngưỡng, Cooldown & Provisioning Delay
-Đối chiếu trực tiếp mã nguồn của [`model_endpoint_router.py`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/model_endpoint_router.py):
+Đối chiếu trực tiếp mã nguồn của [`model_endpoint_router.py`](../model_endpoint_router.py):
 1. **Cooldown Timer (15 giây)**:
-   - Được định nghĩa tại [model_endpoint_router.py:L126](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/model_endpoint_router.py#L126): `self.scaling_interval = cfg.scaling_interval` (giá trị mặc định trong `config.yaml` là 15 giây).
+   - Được định nghĩa tại [model_endpoint_router.py:L126](../model_endpoint_router.py#L126): `self.scaling_interval = cfg.scaling_interval` (giá trị mặc định trong `config.yaml` là 15 giây).
    - Đây là khoảng cách tối thiểu giữa hai quyết định co giãn liên tiếp để tránh hiện tượng rung giật (flapping).
 2. **Provisioning Delay (Độ trễ khởi tạo phần cứng)**:
    - `spin_up = 155s`: Thời gian khởi tạo một container/node LLM mới từ trạng thái tắt đến khi sẵn sàng nhận request.
@@ -483,7 +485,7 @@ Trích xuất từ cả 3 tệp `summary/0.csv` (Giờ 1), `summary/1.csv` (Gi�
 
 ### 7.2. ARIMA-checking: Cửa sổ Forecast ILP vs Time Gate trong Arbiter
 1. **Cửa sổ Forecast của ILP $[t+20..t+60]$**:
-   - Được xác nhận tại [global_arbiter.py:L152-154](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/global_arbiter.py#L152-L154):
+   - Được xác nhận tại [global_arbiter.py:L152-154](../global_arbiter.py#L152-L154):
      ```python
      if self.arima_forecast is not None:
          # use arima forecast for the next hour
@@ -491,11 +493,11 @@ Trích xuất từ cả 3 tệp `summary/0.csv` (Giờ 1), `summary/1.csv` (Gi�
      ```
    - Cửa sổ này dùng để giải bài toán quy hoạch MILP dự báo nhu cầu tài nguyên cho 40 phút cuối của giờ tiếp theo.
 2. **Time Gate "20 phút cuối giờ" trong lớp Arbiter**:
-   - **Xác nhận qua grep**: Hoàn toàn **không tìm thấy** bất kỳ điều kiện thời gian nào kiểm tra `time % 3600 >= 2400` trong lớp `GlobalArbiterARIMAChecking` ([arbiter.py:L567-616](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/arbiter.py#L567-L616)).
+   - **Xác nhận qua grep**: Hoàn toàn **không tìm thấy** bất kỳ điều kiện thời gian nào kiểm tra `time % 3600 >= 2400` trong lớp `GlobalArbiterARIMAChecking` ([arbiter.py:L567-616](../arbiter.py#L567-L616)).
    - **Thực tế mã nguồn**: Quyết định chèn request dev phụ thuộc thuần túy vào tỷ số `ratio = self.tokens_last_minute / predicted_tokens` mà không kiểm tra thời điểm phút trong giờ.
 
 ### 7.3. Rò rỉ Thông tin Tương lai (Look-ahead Leak) tại $t < 3600$
-Tại [global_arbiter.py:L163-164](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/global_arbiter.py#L163-L164):
+Tại [global_arbiter.py:L163-164](../global_arbiter.py#L163-L164):
 ```python
 if t < 3600:
     dev_tokens = self.dev_traces[model][region][t:3600]
@@ -557,7 +559,7 @@ AttributeError: 'GlobalAribiterMemoryUtilizationScaling' object has no attribute
 
 ## Phụ lục A: Nội dung Bản vá Chuẩn (`patches/0001-...patch`)
 
-Nội dung nguyên văn tệp [`patches/0001-fix-minimal-local-fixes-for-2-model-controllers-and-.patch`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/patches/0001-fix-minimal-local-fixes-for-2-model-controllers-and-.patch):
+Nội dung nguyên văn tệp `patches/0001-fix-minimal-local-fixes-for-2-model-controllers-and-.patch`:
 
 ```diff
 From 6828a7395972d14ea7e999abb158c2820afea240 Mon Sep 17 00:00:00 2001
@@ -608,9 +610,9 @@ index 21d4943..99454ad 100644
 
 | Mục | Hướng dẫn trong README.md | Hiện trạng Thực tế trong Mã nguồn Upstream | Giải pháp Khắc phục |
 | :---: | :--- | :--- | :--- |
-| **1** | README dòng 46 ghi `configs/confid.yaml` | Tệp thực tế là [`configs/config.yaml`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/configs/config.yaml) (lỗi chính tả trong README). | Sửa đường dẫn thành `configs/config.yaml`. |
+| **1** | README dòng 46 ghi `configs/confid.yaml` | Tệp thực tế là [`configs/config.yaml`](../configs/config.yaml) (lỗi chính tả trong README). | Sửa đường dẫn thành `configs/config.yaml`. |
 | **2** | Liệt kê 4 chiến lược hậu xử lý: `delay_changes`, `keep_maximum_instances`, `keep_minimum_instances`, `evenly_distributed`. | Mã nguồn ném `NotImplementedError` cho cả 4 chiến lược này; chỉ duy nhất `immediate` hoạt động. | Luôn truyền cờ `global_arbiter.post_processing_strategy=immediate`. |
 | **3** | Hướng dẫn đặt tên tệp ARIMA theo định dạng ngắn gọn. | Mã nguồn hardcode bắt buộc tiền tố `final_{model_name}_prod_1minute_region{region_id}_arima.csv`. | Sinh tệp đúng chuẩn quy ước tên của mã nguồn. |
-| **4** | `config.yaml` đặt mặc định `controller: us3-new` (4 mô hình). | Cơ sở dữ liệu hiệu năng [`perf_model.csv`](file:///e:/SageServe_Chuy%C3%AAn%20%C4%91%E1%BB%81%20TT&MMT/data/perf_model.csv) chỉ hỗ trợ 2 mô hình (Llama2-70b và Bloom-176b). | Luôn override `controller=us3` trên dòng lệnh CLI. |
+| **4** | `config.yaml` đặt mặc định `controller: us3-new` (4 mô hình). | Cơ sở dữ liệu hiệu năng [`perf_model.csv`](../data/perf_model.csv) chỉ hỗ trợ 2 mô hình (Llama2-70b và Bloom-176b). | Luôn override `controller=us3` trên dòng lệnh CLI. |
 | **5** | Đề xuất bật cờ `arima_aware_arbiter=True` cho các arbiter nâng cao. | Chỉ `global_arbiter_ARIMA_checking` có phương thức `set_arima_forecast`; các arbiter khác bị crash với `AttributeError`. | Chỉ bật cờ này khi chạy với `global_arbiter_ARIMA_checking`. |
 | **6** | Hướng dẫn truyền tệp trace dạng đường dẫn đầy đủ: `trace.filename=traces/random_trace_3h.csv`. | Hydra tự ghép `${trace.dir}/${trace.filename}.csv` dẫn đến lỗi `FileNotFoundError: traces//traces/...csv.csv`. | Chỉ truyền tên cơ sở (stem name): `trace.filename=azure_trace_3h`. |

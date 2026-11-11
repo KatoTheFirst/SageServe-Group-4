@@ -37,7 +37,7 @@ Nguồn: tab "Phân công chi tiết" của `Plan 12 tuần SageServe.xlsx` (fil
 | T37 | Dương Tiến Đạt | LT-UA + test | `global_arbiter_ARIMA_checking` trong `arbiter.py`, `tests/test_ltua_ratio.py` | đủ |
 | T38 | Vũ Hoàng Ân | runner thí nghiệm batch | `experiments/run.sh`, `run_all.sh`, `run_sens.sh`, `run_patched.py` | đủ |
 | T39 | Đoàn Việt Đức | routing/scaling hoàn chỉnh | LT-I, LT-U trong `arbiter.py`; `region_router.py`; JSQ ở `model_endpoint_router.py` | đủ |
-| T40 | Bùi Thanh Sơn | checklist nghiệm thu + báo cáo nháp | `check_paper_rules.py`, `REPORT.md` | một phần |
+| T40 | Bùi Thanh Sơn | checklist nghiệm thu + báo cáo nháp | `check_paper_rules.py`, `docs/REPORT.md` | một phần |
 | T41 | Trần Tuấn Đạt | end-to-end v1 + bộ tham số chốt | `RESULTS.md`, `DECISIONS.md` (D1–D23) | đủ |
 | T42 | Dương Tiến Đạt | forecast v2 + so sánh MAPE | không đổi ARIMA-60 (D16, D17); chỉ có chẩn đoán oracle/oracle_smooth | chưa |
 | T43 | Vũ Hoàng Ân | bộ log Siloed / Reactive / LT-I/U/UA | `run.sh s4`, `run.sh lt`; số ở `RESULTS.md` (kết quả mô phỏng không đẩy, lệnh tái tạo có) | đủ |
@@ -48,7 +48,7 @@ Nguồn: tab "Phân công chi tiết" của `Plan 12 tuần SageServe.xlsx` (fil
 | T48 | Vũ Hoàng Ân | kết quả chính + script reproduce | `run_all.sh`, Release `traces-v2`, `RESULTS.md`; mỗi thí nghiệm một seed (mô phỏng tất định) | một phần (không nhiều seed) |
 | T49 | Đoàn Việt Đức | so sánh baseline + burst/scalability | `run.sh chiron`, `burst`, `scale5`; `RESULTS.md` §7.2.3, §7.2.5, §7.2.7 | đủ |
 | T50 | Bùi Thanh Sơn | bảng kết quả chính + so sánh bài báo | `RESULTS.md` | đủ |
-| T51 | Trần Tuấn Đạt | báo cáo v2 | `REPORT.md` (bản nhóm, chưa đối chiếu với số v2) | một phần |
+| T51 | Trần Tuấn Đạt | báo cáo v2 | `docs/REPORT.md` (bản nhóm, chưa đối chiếu với số v2) | một phần |
 | T52 | Dương Tiến Đạt | mục Forecast + notebook sạch | không có | chưa |
 | T53 | Vũ Hoàng Ân | repo sạch, README, requirements/Docker, tag release, demo | `README.md`, `REPRODUCE.md`, `requirements.txt`, Release `traces-v1`, `traces-v2`; không có Docker | một phần |
 | T54 | Đoàn Việt Đức | mục hệ thống + slide | không có | chưa |
