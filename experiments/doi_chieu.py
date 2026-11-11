@@ -577,34 +577,51 @@ CLAIMS_B += [
     (SO, "(dao động phút 14,0 điểm, khởi động 12,0 điểm)", [RNG["phút"], RNG["khởi động"]]),
 ]
 
-# week v2.1 (11/11/2026; LT-I đang chạy lại theo D35, PR sau): S4 week 3 bài, analyze_week (bỏ LT-I), analyze_hourly_miss
-WT = open(f"{P}/week_ngay.txt", encoding="utf-8").read()
+# week v2.1 (11/11/2026; LT-I chạy lần 3 theo D35): S4 week 4 bài (phan_tich/week4), analyze_week, analyze_hourly_miss, fig16b_week
+WT = open(f"{P}/week4_ngay.txt", encoding="utf-8").read()
 WS = {k: dict((r, float(x)) for r, x in re.findall(r"(\w+) ([\d.]+) \(", WT.split(k + ":")[1].splitlines()[0])) for k in ("ngày thường", "cuối tuần")}
 wsp = lambda k, r: pct(WS[k][r], WS[k]["reactive"])
-WCN = [float(x) for x in re.search(r"^CN\s+(.*)$", WT, re.M).group(1).split()]  # ih, miss × reactive, lt_u, lt_ua, rồi vs_reactive
+WCN = [float(x) for x in re.search(r"^CN\s+(.*)$", WT, re.M).group(1).split()]  # ih, miss × reactive, lt_i, lt_u, lt_ua, rồi vs_reactive
 MW = miss_file("week_miss.txt")
-wv = lambda r, m: v("week", r, m, L2)
-wp = lambda r, m=L2: pct(ih("week", r, m), ih("week", "reactive", m))
+wv = lambda r, m: v("week4", r, m, L2)
+wp = lambda r, m=L2: pct(ih("week4", r, m), ih("week4", "reactive", m))
+F16 = {(r, k): tuple(map(float, re.search(rf"{r} P95 gộp ([\d.]+) s, trung vị khối 3 h ([\d.]+) s", open(f"{P}/week4_fig16b.txt", encoding="utf-8").read().split(k + ":")[1].splitlines()[0]).groups()))
+       for r in ("reactive", "lt_i", "lt_u", "lt_ua") for k in ("ngày thường", "cuối tuần")}
+F16T = pd.read_csv(f"{P}/week4_fig16b.csv", index_col=0)
 CLAIMS_B += [
-    (RES, "LT-U / LT-UA: Llama-2 2360,75 → 1876,25 / 1820 (−20,5 / −22,9%); tổng 11155,75 → 9993,75 / 9670 (−10,4 / −13,3%)",
-     [ih("week", "reactive", L2), ih("week", "lt_u", L2), ih("week", "lt_ua", L2), wp("lt_u"), wp("lt_ua"),
-      ih("week", "reactive"), ih("week", "lt_u"), ih("week", "lt_ua"), wp("lt_u", None), wp("lt_ua", None)]),
+    (RES, "LT-I / LT-U / LT-UA: Llama-2 2360,75 → 1831 / 1876,25 / 1820 (−22,4 / −20,5 / −22,9%); tổng 11155,75 → 9214,75 / 9993,75 / 9670 (−17,4 / −10,4 / −13,3%)",
+     [ih("week4", r, L2) for r in ["reactive"] + LT] + [wp(r) for r in LT] + [ih("week4", r) for r in ["reactive"] + LT] + [wp(r, None) for r in LT]),
+    ("BOUND", "week: số Reactive/LT-U/LT-UA của S4 4 bài trùng S4 3 bài", all(abs(v("week4", r, m, L2) - v("week", r, m, L2)) < 1e-9
+                                                                            for r in ("reactive", "lt_u", "lt_ua") for m in ("instance_hours", "iw_ttft_p95", "iw_sla_miss_%"))),
     (RES, "Ngày thường: LT-U −8,0 so với LT-UA −11,1% (cách 3,1 điểm); thứ Bảy, Chủ Nhật: −20,0 so với −22,1% (cách 2,1 điểm). Vi phạm IW Chủ Nhật: LT-UA 7,65%, LT-U 6,36%",
      [wsp("ngày thường", "lt_u"), wsp("ngày thường", "lt_ua"), wsp("ngày thường", "lt_u") - wsp("ngày thường", "lt_ua"),
-      wsp("cuối tuần", "lt_u"), wsp("cuối tuần", "lt_ua"), wsp("cuối tuần", "lt_u") - wsp("cuối tuần", "lt_ua"), WCN[5], WCN[3]]),
-    (RES, "TTFT P95 Llama-2 2,54 so với 2,86 / 2,96 s, vi phạm IW 6,94 so với 8,18 / 8,58%",
-     [wv(r, "iw_ttft_p95") for r in ("reactive", "lt_u", "lt_ua")] + [wv(r, "iw_sla_miss_%") for r in ("reactive", "lt_u", "lt_ua")]),
+      wsp("cuối tuần", "lt_u"), wsp("cuối tuần", "lt_ua"), wsp("cuối tuần", "lt_u") - wsp("cuối tuần", "lt_ua"), WCN[7], WCN[5]]),
+    (RES, "TTFT P95 Llama-2 2,54 so với 14,15 / 2,86 / 2,96 s, vi phạm IW 6,94 so với 10,24 / 8,18 / 8,58%",
+     [wv(r, "iw_ttft_p95") for r in ["reactive"] + LT] + [wv(r, "iw_sla_miss_%") for r in ["reactive"] + LT]),
+    (RES, "| Ngày thường, P95 gộp | 2,62 | 20,36 | 2,88 | 3,44 |", [F16[(r, "ngày thường")][0] for r in ["reactive"] + LT]),
+    (RES, "| Ngày thường, trung vị P95 các khối | 2,43 | 2,79 | 2,75 | 2,78 |", [F16[(r, "ngày thường")][1] for r in ["reactive"] + LT]),
+    (RES, "| Cuối tuần, P95 gộp | 2,24 | 2,85 | 2,39 | 2,48 |", [F16[(r, "cuối tuần")][0] for r in ["reactive"] + LT]),
+    (RES, "| Cuối tuần, trung vị P95 các khối | 2,24 | 2,37 | 2,35 | 2,40 |", [F16[(r, "cuối tuần")][1] for r in ["reactive"] + LT]),
+    (RES, "ngày thường +0,56 s (P95 gộp), +0,03 s (trung vị khối); cuối tuần +0,09 s, +0,05 s",
+     [F16[("lt_ua", k)][i] - F16[("lt_u", k)][i] for k in ("ngày thường", "cuối tuần") for i in (0, 1)]),
+    (RES, "(LT-I / LT-U / LT-UA 1508,53 / 1673,92 / 1879,84 s; Reactive 2,60 s) và thứ Ba 6–9 h (882,32 / 821,36 / 934,97 s)",
+     [F16T.loc["T4 12h", r] for r in LT] + [F16T.loc["T4 12h", "reactive"], 6, 9] + [F16T.loc["T3 06h", r] for r in LT]),
+    ("BOUND", "fig16b: khối xấu nhất của cả 3 LT là T4 12h", all(F16T[r].idxmax() == "T4 12h" for r in LT)),
+    ("BOUND", "fig16b: TTFT P95 cả tuần khớp S4 (kiểm trong week4_fig16b.txt)", all(
+        abs(float(re.search(rf"{r}: TTFT P95 cả tuần ([\d.]+)", open(f"{P}/week4_fig16b.txt", encoding="utf-8").read()).group(1)) - wv(r, "iw_ttft_p95")) < 0.006
+        for r in ["reactive"] + LT)),
     (RES, "`week` 0,36–0,67 (giờ 12, 14, 104, 132, 158: +40.317 trên ròng +35.614)", [MW[3], MW[4]] + MW[5]),
     ("BOUND", "week: +40.317 trên ròng +35.614", MW[2] == 40317 and MW[1] == 35614),
     ("BOUND", "week: tầng IW Llama-2 analyze_hourly_miss = S4 (6,94 / 8,18 / 8,58)", all(abs(MW[0][r][0] - wv(r, "iw_sla_miss_%")) < 0.01 for r in ("reactive", "lt_u", "lt_ua"))),
-    (SO, "| Cả tuần Llama-2 so Reactive (LT-I / LT-U / LT-UA) | −14,0 / −11,6 / −13,2% | chờ / −20,5 / −22,9% |", [None] * 3 + [wp("lt_u"), wp("lt_ua")]),
-    (SO, "| Cả tuần tổng 4 mô hình | −12,5 / −5,4 / −6,5% | chờ / −10,4 / −13,3% |", [4] + [None] * 3 + [wp("lt_u", None), wp("lt_ua", None)]),
+    (SO, "| Cả tuần Llama-2 so Reactive (LT-I / LT-U / LT-UA) | −14,0 / −11,6 / −13,2% | −22,4 / −20,5 / −22,9% |", [None] * 3 + [wp(r) for r in LT]),
+    (SO, "| Cả tuần tổng 4 mô hình | −12,5 / −5,4 / −6,5% | −17,4 / −10,4 / −13,3% |", [4] + [None] * 3 + [wp(r, None) for r in LT]),
     (SO, "| Ngày thường LT-U / LT-UA, khoảng cách | −3,3 / −4,1%, 0,8 điểm | −8,0 / −11,1%, 3,1 điểm |",
      [None] * 3 + [wsp("ngày thường", "lt_u"), wsp("ngày thường", "lt_ua"), wsp("ngày thường", "lt_u") - wsp("ngày thường", "lt_ua")]),
     (SO, "| Cuối tuần LT-U / LT-UA, khoảng cách | −13,8 / −15,7%, 1,9 điểm | −20,0 / −22,1%, 2,1 điểm |",
      [None] * 3 + [wsp("cuối tuần", "lt_u"), wsp("cuối tuần", "lt_ua"), wsp("cuối tuần", "lt_u") - wsp("cuối tuần", "lt_ua")]),
     (SO, "| TTFT P95 Llama-2 Reactive → LT-U / LT-UA | 2,56 → 2,86 / 2,87 s | 2,54 → 2,86 / 2,96 s |", [None] * 3 + [wv(r, "iw_ttft_p95") for r in ("reactive", "lt_u", "lt_ua")]),
     (SO, "| Vi phạm IW Llama-2 Reactive → LT-U / LT-UA | 7,0 → 8,1 / 8,5% | 6,94 → 8,18 / 8,58% |", [None] * 3 + [wv(r, "iw_sla_miss_%") for r in ("reactive", "lt_u", "lt_ua")]),
+    (SO, "| TTFT P95 Llama-2 LT-I; vi phạm IW LT-I | – | 14,15 s; 10,24% |", [wv("lt_i", "iw_ttft_p95"), wv("lt_i", "iw_sla_miss_%")]),
     (SO, "khoảng cách ngày thường (3,1 điểm) lớn hơn cuối tuần (2,1 điểm)",
      [wsp("ngày thường", "lt_u") - wsp("ngày thường", "lt_ua"), wsp("cuối tuần", "lt_u") - wsp("cuối tuần", "lt_ua")]),
 ]
