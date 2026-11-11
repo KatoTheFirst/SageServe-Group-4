@@ -14,3 +14,4 @@
 8. **Bị từ chối quyền thì dừng.** Lệnh bị từ chối quyền thì dừng và hỏi tôi; không dùng công cụ/shell khác để làm cùng việc.
 9. **Script phân tích chạy qua `experiments/chay_phan_tich.py`** (chỉ khởi động khi RAM dùng < 70%, tuần tự); số đưa vào RESULTS/SENSITIVITY/SO_DOI phải qua `experiments/doi_chieu.py`, 0 sai mới commit.
 10. **Không tạo file .md mới ở thư mục gốc repo khi chưa được duyệt.** Kế hoạch, nhật ký, báo cáo tạm của phiên ghi vào `output/` (không đẩy lên repo). Tài liệu lâu dài đặt trong `docs/` và phải được dẫn từ README.
+11. **Nhánh và nơi nộp (trưởng nhóm, 11/11/2026).** Không commit/push lên `main`. Code và tài liệu repo của tôi đi qua nhánh `feature/hoang_an` trên `group4`; xong thì mở PR `feature/hoang_an` → `main`, trưởng nhóm gộp. Bài tuần (docx, báo cáo trong `output/`) không lên GitHub; tôi tự nộp lên phần tài liệu.

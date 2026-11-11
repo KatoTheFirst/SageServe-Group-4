@@ -14,7 +14,7 @@ Nguồn: tab "Phân công chi tiết" của `Plan 12 tuần SageServe.xlsx` (fil
 | T14 | Đoàn Việt Đức | sơ đồ kiến trúc + bảng tham số | bảng tham số ở `REPRODUCE.md` mục 4; không có sơ đồ | một phần |
 | T15 | Bùi Thanh Sơn | danh mục thí nghiệm + khung báo cáo | danh mục tuyên bố cần tái hiện ở `RESULTS.md`; khung báo cáo ở ngoài repo | một phần |
 | T16 | Trần Tuấn Đạt | "System config v1" | `configs/controller/us3-3models.yaml`, `us3-4models.yaml`; tài liệu ở `output/` | một phần |
-| T17 | Dương Tiến Đạt | notebook + bảng periodicity theo tier | cổng T2 (ACF lag 24 giờ theo tier) ở `TRACE_SPEC.md`, chấm bằng `qualify_trace.py`; notebook ở `output/` | một phần |
+| T17 | Dương Tiến Đạt | notebook + bảng periodicity theo tier | cổng T2 (ACF lag 24 giờ theo tier) ở `TRACE_SPEC.md` (cùng thư mục docs/), chấm bằng `qualify_trace.py`; notebook ở `output/` | một phần |
 | T18 | Vũ Hoàng Ân | script tiền xử lý + dataset dev | `preprocess_servegen.py`, `compose_trace.py`, `fork_trace.py`, `make_trace_v2.py`, `validate_trace.py`, `qualify_trace.py`; trace ở Release `traces-v1`, `traces-v2` | đủ |
 | T19 | Đoàn Việt Đức | ghi chú code walkthrough | `configs/controller/us1-llama70b.yaml`; ghi chú ở `output/` | một phần |
 | T20 | Bùi Thanh Sơn | hình characterization v1 + nháp mục 3 | hình ở `output/` | chưa (trong repo) |

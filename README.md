@@ -96,6 +96,7 @@ PY=python RESULTS_ROOT=<thư mục kết quả> bash experiments/run.sh <tên> [
 - [RESULTS.md](RESULTS.md): kết quả từng tuyên bố của bài báo, chấm điểm, lệnh tái tạo, mục Hạn chế.
 - [DECISIONS.md](DECISIONS.md): vì sao làm vậy (mỗi quyết định có ngày và bằng chứng).
 - [REPRODUCE.md](REPRODUCE.md): chạy lại toàn bộ (trace, θ, tham số, mọi thí nghiệm).
+- [docs/TRACE_SPEC.md](docs/TRACE_SPEC.md): đặc tả trace và các cổng T1–T9 (đóng băng 2/11/2026, D1).
 - [docs/PLAN_MAPPING.md](docs/PLAN_MAPPING.md): đầu việc Plan 12 tuần ↔ file trong repo.
 - [CLAUDE.md](CLAUDE.md): luật làm việc của dự án.
 - [docs/REPORT.md](docs/REPORT.md): báo cáo nhóm, bản nháp (số chưa đối chiếu v2.1).
@@ -109,7 +110,7 @@ Code trong repo đã được sửa để chạy theo bài báo SageServe (arXiv
 
 ### Trạng thái hiện tại (Pha 0–6 xong, 4/11/2026)
 
-- **Trace:** mọi thí nghiệm dùng trace v2 (`traces/SHA256SUMS_v2`), sinh từ v1 bằng `make_trace_v2.py` để qua các cổng của `TRACE_SPEC.md`.
+- **Trace:** mọi thí nghiệm dùng trace v2 (`traces/SHA256SUMS_v2`), sinh từ v1 bằng `make_trace_v2.py` để qua các cổng của [docs/TRACE_SPEC.md](docs/TRACE_SPEC.md).
 - **Kết luận chính** (nguyên văn từ [RESULTS.md](RESULTS.md)): "hướng của bài báo đứng được (khi dự báo tốt), biên độ thì không tái lập được; bài báo không cho sai số dự báo đỉnh, nên không biết bao nhiêu trong 20–24% đến từ cùng cơ chế (loại C)."
 - **Số liệu và chấm điểm từng tuyên bố:** [RESULTS.md](RESULTS.md). **Quyết định và bằng chứng:** [DECISIONS.md](DECISIONS.md). **Đối chiếu với Plan 12 tuần:** [docs/PLAN_MAPPING.md](docs/PLAN_MAPPING.md).
 - **Lấy trace:** xem mục "Lấy trace v2" ngay bên dưới.
