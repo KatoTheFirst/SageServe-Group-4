@@ -9,7 +9,7 @@ Viết cho người không đọc code. Mọi lệnh chạy trong **Git Bash** (
 
 | Bước | Lệnh | Mất bao lâu | Đúng khi |
 |---|---|---|---|
-| 1. Lấy code | Lần đầu: `git clone https://github.com/KatoTheFirst/SageServe-Group-4.git && cd SageServe-Group-4`. Đã có repo: `git checkout main && git pull`. Khi PR #2 chưa được gộp vào `main`, số v2.1 nằm ở nhánh `pha4-6-v2`: chạy thêm `git checkout pha4-6-v2` | dưới 1 phút (đo: 35 s) | Thư mục có `run.py`, `RESULTS.md` |
+| 1. Lấy code | Lần đầu: `git clone https://github.com/KatoTheFirst/SageServe-Group-4.git && cd SageServe-Group-4`. Đã có repo: `git checkout main && git pull` | dưới 1 phút (đo: 35 s) | Thư mục có `run.py`, `RESULTS.md` |
 | 2. Môi trường Python 3.11 | Cách A (venv): `py -3.11 -m venv .venv && source .venv/Scripts/activate` (không có `py`: thay `py -3.11` bằng đường dẫn tới `python.exe` 3.11). Cách B (conda): `conda create -n sim python=3.11 && conda activate sim`. Sau đó: `pip install -r requirements.txt` và `export PYTHONIOENCODING=utf-8` | khoảng 5 phút (đo: tạo venv 15 s, cài 4 phút 19 s khi pip đã có sẵn gói tải về; lần đầu có thể lâu hơn) | `python --version` in `Python 3.11.x`; `pip` không báo `ERROR` |
 | 3. Trace v2 và dự báo | 5 lệnh ngay dưới bảng | khoảng 1 phút (đo: 58 s) | Mọi dòng in `OK` (12 trace, 3 file θ, rồi các file dự báo), không dòng nào `FAILED` |
 | 4. Kiểm thử | `python -m pytest` | khoảng 5 phút (đo: 5 phút 9 giây) | Dòng cuối `101 passed`, không có `failed` |
@@ -59,7 +59,7 @@ PY=python RESULTS_ROOT=<thư mục kết quả> bash experiments/run.sh <tên> [
 
 - `<tên>`: một tên ở bảng mục 2. `end_time`: số giây mô phỏng, mặc định 86400 (1 ngày; `week` mặc định 604800). Mọi bài của một thí nghiệm chạy song song.
 - `PY`: lệnh Python của môi trường (mặc định `python`, dùng được khi đã kích hoạt venv/conda).
-- `RESULTS_ROOT`: nơi ghi kết quả, mặc định `results/` trong repo. Một bài cả ngày ghi khoảng 1 GB, `week` khoảng 30 GB cho 4 bài. Các đường dẫn `D:/...`, `E:/...` trong RESULTS.md là máy của An; **máy không có ổ D thì đặt `RESULTS_ROOT` sang ổ còn chỗ**, ví dụ `RESULTS_ROOT=C:/sage_results`, và thay `$R` trong lệnh phân tích bằng thư mục đó.
+- `RESULTS_ROOT`: nơi ghi kết quả, mặc định `results/` trong repo. Một bài cả ngày ghi khoảng 1 GB, `week` khoảng 30 GB cho 4 bài. Đường dẫn kết quả trong RESULTS.md, DECISIONS.md viết dạng `$RESULTS_ROOT/...` (giải thích ở đầu RESULTS.md); **máy không có ổ D thì đặt `RESULTS_ROOT` sang ổ còn chỗ**, ví dụ `RESULTS_ROOT=C:/sage_results`, và thay `$R` trong lệnh phân tích bằng thư mục đó.
 - Kết quả: `<RESULTS_ROOT>/<tên>/<cấu hình>/` (ví dụ `results/lt/lt_ua/`). File quan trọng:
   - `summary/`, `detailed/`, `memory/`: số liệu để phân tích và so bài. Bài quá ngắn như `s4 300` không có các thư mục này;
   - `sage_env.txt`: commit code (`CODE_COMMIT`) và biến môi trường của bài, dùng để biết bài chạy trên code nào;
@@ -96,8 +96,11 @@ PY=python RESULTS_ROOT=<thư mục kết quả> bash experiments/run.sh <tên> [
 - [RESULTS.md](RESULTS.md): kết quả từng tuyên bố của bài báo, chấm điểm, lệnh tái tạo, mục Hạn chế.
 - [DECISIONS.md](DECISIONS.md): vì sao làm vậy (mỗi quyết định có ngày và bằng chứng).
 - [REPRODUCE.md](REPRODUCE.md): chạy lại toàn bộ (trace, θ, tham số, mọi thí nghiệm).
-- [PLAN_MAPPING.md](PLAN_MAPPING.md): đầu việc Plan 12 tuần ↔ file trong repo.
+- [docs/TRACE_SPEC.md](docs/TRACE_SPEC.md): đặc tả trace và các cổng T1–T9 (đóng băng 2/11/2026, D1).
+- [docs/PLAN_MAPPING.md](docs/PLAN_MAPPING.md): đầu việc Plan 12 tuần ↔ file trong repo.
 - [CLAUDE.md](CLAUDE.md): luật làm việc của dự án.
+- [docs/REPORT.md](docs/REPORT.md): báo cáo nhóm, bản nháp (số chưa đối chiếu v2.1).
+- [docs/nhat_ky/](docs/nhat_ky/): nhật ký các phiên (kế hoạch dọn ổ, kiểm kê Pha 0), giữ để truy vết.
 
 ---
 
@@ -107,9 +110,9 @@ Code trong repo đã được sửa để chạy theo bài báo SageServe (arXiv
 
 ### Trạng thái hiện tại (Pha 0–6 xong, 4/11/2026)
 
-- **Trace:** mọi thí nghiệm dùng trace v2 (`traces/SHA256SUMS_v2`), sinh từ v1 bằng `make_trace_v2.py` để qua các cổng của `TRACE_SPEC.md`.
+- **Trace:** mọi thí nghiệm dùng trace v2 (`traces/SHA256SUMS_v2`), sinh từ v1 bằng `make_trace_v2.py` để qua các cổng của [docs/TRACE_SPEC.md](docs/TRACE_SPEC.md).
 - **Kết luận chính** (nguyên văn từ [RESULTS.md](RESULTS.md)): "hướng của bài báo đứng được (khi dự báo tốt), biên độ thì không tái lập được; bài báo không cho sai số dự báo đỉnh, nên không biết bao nhiêu trong 20–24% đến từ cùng cơ chế (loại C)."
-- **Số liệu và chấm điểm từng tuyên bố:** [RESULTS.md](RESULTS.md). **Quyết định và bằng chứng:** [DECISIONS.md](DECISIONS.md). **Đối chiếu với Plan 12 tuần:** [PLAN_MAPPING.md](PLAN_MAPPING.md).
+- **Số liệu và chấm điểm từng tuyên bố:** [RESULTS.md](RESULTS.md). **Quyết định và bằng chứng:** [DECISIONS.md](DECISIONS.md). **Đối chiếu với Plan 12 tuần:** [docs/PLAN_MAPPING.md](docs/PLAN_MAPPING.md).
 - **Lấy trace:** xem mục "Lấy trace v2" ngay bên dưới.
 - **Chạy:** `PY=<python> RESULTS_ROOT=<thư mục> bash experiments/run.sh <tên>`; mỗi dòng của RESULTS.md ghi lệnh chạy và lệnh phân tích. So hai bài: `python experiments/compare_runs.py <A> <B>`.
 

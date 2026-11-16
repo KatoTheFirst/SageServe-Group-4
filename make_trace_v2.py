@@ -1,5 +1,5 @@
 """
-Tạo trace v2 từ trace v1 (v1 giữ nguyên), chỉ sửa thuộc tính trượt cổng TRACE_SPEC.md. Mỗi cờ ứng với một cổng:
+Tạo trace v2 từ trace v1 (v1 giữ nguyên), chỉ sửa thuộc tính trượt cổng docs/TRACE_SPEC.md. Mỗi cờ ứng với một cổng:
   --niw_sigma S        T6 NIW `t7`: trọng số phút log-normal(0, S) cho NIW trong từng giờ (Fig. 3d)
   --spikes TIER M...   T6 `t11`: mỗi giờ, mỗi hệ số M tạo 1 phút có tải gấp M lần phút thường (Fig. 3b). TIER: IW hoặc NIW
   --fill_week_iwn      T7b: Azure conv thiếu thứ Sáu, thứ Bảy -> chép IW-N của thứ Năm sang thứ Sáu, của Chủ Nhật sang thứ Bảy

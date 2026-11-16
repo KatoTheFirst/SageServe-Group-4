@@ -19,7 +19,7 @@ ax.axvline(base, color="#888888", lw=1)
 ax.text(base, len(rows) - 0.4, f"gốc {base:.1f}%", ha="center", fontsize=9, color="#555555")
 ax.set_yticks(range(len(rows)), [r[0] for r in rows], fontsize=9)
 ax.set_xlabel("Reactive − LT-UA (% instance-hours), bản cắt 12–15h", fontsize=9)
-ax.set_xlim(0, 30)
+ax.set_xlim(0, max(30, max(r[2] for r in rows) + 5))
 ax.grid(axis="x", color="#E6E6E6", lw=0.7)
 ax.set_axisbelow(True)
 for s in ("top", "right", "left"):

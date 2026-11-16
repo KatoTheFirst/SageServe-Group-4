@@ -1,5 +1,5 @@
 """
-Cổng trace T1–T9 theo TRACE_SPEC.md. Chỉ chấm theo §2–§3, §4, §7.1 của bài báo, không dùng kết quả §7.
+Cổng trace T1–T9 theo docs/TRACE_SPEC.md. Chỉ chấm theo §2–§3, §4, §7.1 của bài báo, không dùng kết quả §7.
 
 Dùng: python qualify_trace.py <trace> --role t7|t11 [--week <trace tuần>] [--day0 N] [--week_day N] [--forecast <thư mục>]
                               [--reactive <bài Reactive>] [--gpu a100|h100] [--variant niw|burst] [--s4]
