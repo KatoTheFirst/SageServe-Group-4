@@ -13,7 +13,7 @@ import application_repo
 from simulator import clock, schedule_event, cancel_event, reschedule_event
 import start_state_repo
 import utils
-from long_term_allocation import MilpLongTermAllocation
+from optimizer import Optimizer
 from generate_causal_arima_forecasts import WINDOW, HORIZON, fit_forecast
 
 
@@ -142,7 +142,7 @@ class MilpGlobalArbiter(GlobalArbiter):
             self.model_to_idx_mapping[unique_models[i]] = i
         # θ (§2.1, §5): input TPS 1 instance ở latency mục tiêu, đo bằng benchmark_theta.py; dự báo tính theo TPM nên ×60
         theta = pd.read_csv(self.theta_file).set_index("model").theta_tps
-        self.milp_allocator = MilpLongTermAllocation(
+        self.milp_allocator = Optimizer(
             models=self.models,
             regions=self.regions,
             gpus=1,
