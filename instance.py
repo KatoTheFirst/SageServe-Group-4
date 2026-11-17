@@ -439,7 +439,8 @@ class ORCAInstance(Instance):
         """
         Remove a Task from the batch.
         """
-        self.batch.remove(task)
+        # T38: xóa theo danh tính như list.remove nhưng không gọi __eq__ của dataclass (xem select_batch)
+        del self.batch[next(i for i, t in enumerate(self.batch) if t is task)]
 
         if isinstance(task, PromptTask):
             self.num_prompt_tasks_in_batch -= 1
