@@ -1,0 +1,8 @@
+# §7.2.7 Nov 2024: 4 chiến lược trên trace thứ hai (run.sh nov2024)
+name: nov2024
+end_time: 86400
+ram_gb: 2.6
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, "trace.filename={trace}", "controller={controller}", "global_arbiter.arima_traces=traces/forecasts/{forecast}", "global_arbiter.theta_file={theta}"]
+runs:
+  - lt4: {vars: {trace: fork_day_3regions_v2, forecast: fork_day_3regions_v2, controller: us3-4models, theta: data/theta_tps_fork_v2.csv}, ref_prefix: nov2024/}

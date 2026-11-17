@@ -1,0 +1,24 @@
+# Độ nhạy 2 (run_sens.sh sens2): burst x8 trong/ngoài 20 phút cuối giờ (có LT-UA tắt luật giảm), H100. Mọi bài qua run_patched.py.
+name: sens2
+end_time: 10800
+ram_gb: 1.3
+max_parallel: 8
+script: experiments/run_patched.py
+vars: {trace: composed_day_3regions_12to15_v2, theta: data/theta_tps_v2.csv, controller: us3-4models}
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, "trace.filename={trace}", "controller={controller}", "global_arbiter.arima_traces=traces/forecasts/{trace}", "global_arbiter.theta_file={theta}"]
+prepare:
+  - {cmd: ["{py}", experiments/make_sens_traces.py], creates: traces/sens_burst_out.csv}
+  - {cmd: ["{py}", generate_causal_arima_forecasts.py, --trace, traces/sens_burst_in.csv, --output_dir, traces/forecasts/sens_burst_in], creates: traces/forecasts/sens_burst_in}
+  - {cmd: ["{py}", generate_causal_arima_forecasts.py, --trace, traces/sens_burst_out.csv, --output_dir, traces/forecasts/sens_burst_out], creates: traces/forecasts/sens_burst_out}
+runs:
+  - {name: burst_in/reactive, vars: {trace: sens_burst_in}, overrides: [long_term_scaling=False], ref: sens2/burst_in/reactive}
+  - {name: burst_in/lt_u, vars: {trace: sens_burst_in}, overrides: [long_term_scaling=True], arbiter: global_arbiter_memory_utilization, ref: sens2/burst_in/lt_u}
+  - {name: burst_in/lt_ua, vars: {trace: sens_burst_in}, overrides: [long_term_scaling=True], arbiter: global_arbiter_ARIMA_checking, ref: sens2/burst_in/lt_ua}
+  - {name: burst_in/lt_ua_nodown, vars: {trace: sens_burst_in}, env: {SAGE_NO_DOWN: 1}, overrides: [long_term_scaling=True], arbiter: global_arbiter_ARIMA_checking, ref: sens2/burst_in/lt_ua_nodown}
+  - {name: burst_out/reactive, vars: {trace: sens_burst_out}, overrides: [long_term_scaling=False], ref: sens2/burst_out/reactive}
+  - {name: burst_out/lt_u, vars: {trace: sens_burst_out}, overrides: [long_term_scaling=True], arbiter: global_arbiter_memory_utilization, ref: sens2/burst_out/lt_u}
+  - {name: burst_out/lt_ua, vars: {trace: sens_burst_out}, overrides: [long_term_scaling=True], arbiter: global_arbiter_ARIMA_checking, ref: sens2/burst_out/lt_ua}
+  - {name: burst_out/lt_ua_nodown, vars: {trace: sens_burst_out}, env: {SAGE_NO_DOWN: 1}, overrides: [long_term_scaling=True], arbiter: global_arbiter_ARIMA_checking, ref: sens2/burst_out/lt_ua_nodown}
+  - {name: h100/reactive, vars: {controller: us3-4models-h100, theta: data/theta_tps_h100_v2.csv}, overrides: [long_term_scaling=False], ref: sens2/h100/reactive}
+  - {name: h100/lt_ua, vars: {controller: us3-4models-h100, theta: data/theta_tps_h100_v2.csv}, overrides: [long_term_scaling=True], arbiter: global_arbiter_ARIMA_checking, ref: sens2/h100/lt_ua}

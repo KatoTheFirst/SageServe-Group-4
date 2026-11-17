@@ -1,0 +1,15 @@
+# §7.2.6, Fig. 15: FCFS / EDF / PF / DPA, giờ 12–15h, năng lực cố định; SLA IW-N 60 s và 6 s (run.sh sched; end_time 86400 như run.sh)
+name: sched
+end_time: 86400
+ram_gb: 1.3
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, "trace.filename={trace}", controller=us3-4models-fixed75, short_term_scaling=False]
+runs:
+  - {name: sla60/fcfs, vars: {trace: composed_day_3regions_12to15_v2}, overrides: [queue_policy=fcfs], ref: sched/sla60/fcfs}
+  - {name: sla60/edf, vars: {trace: composed_day_3regions_12to15_v2}, overrides: [queue_policy=edf], ref: sched/sla60/edf}
+  - {name: sla60/pf, vars: {trace: composed_day_3regions_12to15_v2}, overrides: [queue_policy=pf], ref: sched/sla60/pf}
+  - {name: sla60/dpa, vars: {trace: composed_day_3regions_12to15_v2}, overrides: [queue_policy=dpa], ref: sched/sla60/dpa}
+  - {name: sla6/fcfs, vars: {trace: composed_day_3regions_12to15_iwn6_v2}, overrides: [queue_policy=fcfs], ref: sched/sla6/fcfs}
+  - {name: sla6/edf, vars: {trace: composed_day_3regions_12to15_iwn6_v2}, overrides: [queue_policy=edf], ref: sched/sla6/edf}
+  - {name: sla6/pf, vars: {trace: composed_day_3regions_12to15_iwn6_v2}, overrides: [queue_policy=pf], ref: sched/sla6/pf}
+  - {name: sla6/dpa, vars: {trace: composed_day_3regions_12to15_iwn6_v2}, overrides: [queue_policy=dpa], ref: sched/sla6/dpa}

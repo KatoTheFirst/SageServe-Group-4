@@ -1,0 +1,8 @@
+# §7.2.5 (thay thế): thêm mô hình thứ 5 (run.sh scale5)
+name: scale5
+end_time: 86400
+ram_gb: 2.6
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, "trace.filename={trace}", "controller={controller}", "global_arbiter.arima_traces=traces/forecasts/{forecast}", "global_arbiter.theta_file={theta}"]
+runs:
+  - lt4: {vars: {trace: composed_day_3regions_5models_v2, forecast: composed_day_3regions_5models_v2, controller: us3-5models, theta: data/theta_tps_v2.csv}, ref_prefix: scale5/}

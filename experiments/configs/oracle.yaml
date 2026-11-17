@@ -1,0 +1,12 @@
+# Chẩn đoán (không có trong bài báo): LT-I/U/UA với dự báo = tải thực (oracle) hoặc tải thực làm trơn 60 phút (oracle_smooth),
+# trace chính và trace Nov (run.sh oracle). Cần dự báo: python generate_causal_arima_forecasts.py --oracle exact|smooth ...
+name: oracle
+end_time: 86400
+ram_gb: 2.6
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, "trace.filename={trace}", "controller={controller}", "global_arbiter.arima_traces=traces/forecasts/{forecast}", "global_arbiter.theta_file={theta}"]
+runs:
+  - lt4: {prefix: oracle/lt/, strategies: [lt_i, lt_u, lt_ua], vars: {trace: composed_day_3regions_v2, forecast: composed_day_3regions_v2_oracle, controller: us3-4models, theta: data/theta_tps_v2.csv}, ref_prefix: oracle/lt/}
+  - lt4: {prefix: oracle/nov2024/, strategies: [lt_i, lt_u, lt_ua], vars: {trace: fork_day_3regions_v2, forecast: fork_day_3regions_v2_oracle, controller: us3-4models, theta: data/theta_tps_fork_v2.csv}, ref_prefix: oracle/nov2024/}
+  - lt4: {prefix: oracle_smooth/lt/, strategies: [lt_i, lt_u, lt_ua], vars: {trace: composed_day_3regions_v2, forecast: composed_day_3regions_v2_oracle_smooth, controller: us3-4models, theta: data/theta_tps_v2.csv}, ref_prefix: oracle_smooth/lt/}
+  - lt4: {prefix: oracle_smooth/nov2024/, strategies: [lt_i, lt_u, lt_ua], vars: {trace: fork_day_3regions_v2, forecast: fork_day_3regions_v2_oracle_smooth, controller: us3-4models, theta: data/theta_tps_fork_v2.csv}, ref_prefix: oracle_smooth/nov2024/}
