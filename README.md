@@ -15,7 +15,7 @@ Viết cho người không đọc code. Mọi lệnh chạy trong **Git Bash** (
 | 4. Kiểm thử | `python -m pytest` | khoảng 5 phút (đo: 5 phút 9 giây) | Dòng cuối `101 passed`, không có `failed` |
 | 5. Chạy thử | `bash experiments/run.sh s4 300` (§4, chỉ 300 giây mô phỏng) | vài giây (đo: 6 s) | Dòng cuối `[+] Xong s4`; có `results/s4/unified/run.log` với dòng cuối chứa `TraceSimulator completed at 300`. Bài 300 s chỉ để thử máy chạy được: chưa có số để phân tích (mục 3) |
 
-Lệnh bước 3 (tải 12 trace + dự báo từ Release `traces-v2`, khoảng 320 MB, rồi kiểm sha256):
+Lệnh bước 3: `python fetch_traces.py --v2` (tải 12 trace + dự báo từ Release `traces-v2`, khoảng 320 MB, kiểm sha256; chạy lại thì bỏ qua file đã đúng). Cách khác không cần Python:
 
 ```bash
 B=https://github.com/KatoTheFirst/SageServe-Group-4/releases/download/traces-v2
@@ -73,6 +73,18 @@ PY=python RESULTS_ROOT=<thư mục kết quả> bash experiments/run.sh <tên> [
   Mất vài giây. In bảng instance-hours, TTFT, E2E theo mô hình, lưu `compare_with_paper.csv` và hình vào `results/s4_compare`. Đúng khi dòng cuối là `Tổng instance-hours: {'unified:instance_hours': 411.2, 'siloed:instance_hours': 595.8} ...`, khớp dòng §4, Fig. 8a của RESULTS (411,25 so với 595,75). Với thí nghiệm 4 chiến lược (`lt`, `nov2024`…): `python analyze_s4.py $R/<tên>/reactive $R/<tên>/lt_i $R/<tên>/lt_u $R/<tên>/lt_ua --skip_hours 1 --out $R/<tên>/compare`, với `R` là `RESULTS_ROOT` của bạn.
 - So bài của mình với bài của nhóm (kết quả mô phỏng không có trên GitHub, xin An thư mục tương ứng): `python experiments/compare_runs.py <bài nhóm> <bài mình>`, ví dụ `python experiments/compare_runs.py <thư mục nhóm>/s4/unified results/s4/unified`. Đúng khi in `KẾT LUẬN: TRÙNG` (dòng "cấu hình khác ở: ['CODE_COMMIT']" là bình thường khi số trùng). In `KHÔNG TẤT ĐỊNH` (cùng cấu hình mà số khác) thì báo nhóm ngay.
 
+### 3b. Chạy thí nghiệm bằng runner (T38)
+
+```bash
+python experiments/runner.py --config experiments/configs/<tên>.yaml --out <thư mục kết quả> [--seeds 0 1] [--end-time 300] [--dry-run]
+```
+
+- `<tên>`: s4, lt, oracle, chiron, sched, nov2024, burst, h100, niw, scale5, week, sens, sens2 (cùng tham số với `run.sh` / `run_sens.sh`; `--dry-run` chỉ in lệnh, thêm `--ref <gốc kết quả cũ>` để so tham số với bài cũ).
+- Kết quả: `<out>/<tên>/<bài>/seed<k>/`, log `seed<k>.out`; cuối cùng `<out>/<tên>/INDEX.csv` (trạng thái, thời gian, RAM đỉnh, `CODE_COMMIT` từng bài). Không có `--out` thì dùng `RESULTS_ROOT`, rồi `results/`.
+- Tự chia bài theo RAM (≤ 85% RAM máy, chừa ≥ 2 GB; RAM > 90% thì ngừng khởi động thêm tới khi < 80%). Chạy lại cùng lệnh thì bỏ qua bài đã xong; bài dở dang đổi tên `_loi_<giờ>` rồi chạy lại (tối đa 1 lần, lần 2 ghi THIẾU).
+- Seed 0 là mặc định (cho đúng số của RESULTS.md); seed khác đổi phần ngẫu nhiên của mô phỏng (thời gian lấy lại máy spot, trễ chuyển vùng).
+- `run.sh` / `run_sens.sh` vẫn dùng được như cũ.
+
 ### 4. Quy tắc nhóm
 
 - Không commit thẳng vào `main`: tạo nhánh (`git checkout -b <tên-nhánh>`), đẩy lên, mở Pull Request.
@@ -128,7 +140,7 @@ curl -sSLO $B/SHA256SUMS_forecasts_v2
 tr -d '\r' < traces/SHA256SUMS_v2 | sha256sum -c && sha256sum -c SHA256SUMS_forecasts_v2   # tr: git trên Windows checkout file này với CRLF
 ```
 
-`python fetch_traces.py` hiện **chỉ tải trace v1** (Release `traces-v1`), không đủ để chạy `experiments/run.sh`.
+Hoặc gọn hơn: `python fetch_traces.py --v2` (tải, giải nén, kiểm sha256 cả trace lẫn dự báo). `python fetch_traces.py` không có `--v2` chỉ tải trace v1 (Release `traces-v1`).
 
 - Chạy thí nghiệm: `bash experiments/run.sh <tên>` (s4, lt, chiron, sched, nov2024, scale5, burst, week, h100, niw_ratio)
 - Kiểm thử: `python -m pytest`

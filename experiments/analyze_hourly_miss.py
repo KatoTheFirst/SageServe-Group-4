@@ -1,6 +1,6 @@
 """Vi phạm SLA IW theo giờ: Reactive so với LT-U, kèm tỉ lệ đỉnh dự báo ARIMA / đỉnh thực (forecast_log.csv của LT-UA).
 In các giờ LT-U vi phạm thêm nhiều nhất và tỉ lệ vi phạm SLA một tầng 60 s (D4).
-Dùng: python experiments/analyze_hourly_miss.py D:/SageServe_results/v2/full/lt [--model llama2-70b] [--top 5]"""
+Dùng: python experiments/analyze_hourly_miss.py $RESULTS_ROOT/v2/full/lt [--model llama2-70b] [--top 5]"""
 import argparse
 import os
 import sys

@@ -1,5 +1,5 @@
 """Pha 3, burst trên bản cắt: 1 burst x8 10 phút trong hoặc ngoài 20 phút cuối giờ. In instance-hours, vi phạm, P95, thời gian bộ nhớ hồi về < 70%.
-Dùng: python experiments/analyze_burst_cut.py D:/SageServe_results/v2/sens2"""
+Dùng: python experiments/analyze_burst_cut.py $RESULTS_ROOT/v2/sens2"""
 import glob
 import os
 import sys

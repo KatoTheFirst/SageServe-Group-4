@@ -1,5 +1,5 @@
 """Pha 3: bảng độ nhạy khoảng cách Reactive − LT-UA (instance-hours) và lãng phí khi tăng máy. Bỏ giờ đầu.
-Dùng: python experiments/analyze_sensitivity.py D:/SageServe_results/v2/sens [--out SENS.csv]"""
+Dùng: python experiments/analyze_sensitivity.py $RESULTS_ROOT/v2/sens [--out SENS.csv]"""
 import argparse
 import os
 import sys

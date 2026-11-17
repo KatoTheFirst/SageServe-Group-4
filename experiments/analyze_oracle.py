@@ -1,6 +1,6 @@
 """Pha 5 (D16–D18): chiến lược × dự báo (ARIMA, oracle, oracle_smooth) × trace (lt = trace chính, nov2024 = trace Nov).
 Mỗi dòng: instance-hours so với Reactive cùng trace (Llama-2 và tổng 4 mô hình), vi phạm SLA IW, TTFT Q3/P95 của Llama-2.
-Dùng: python experiments/analyze_oracle.py D:/SageServe_results/v2/full [--oracle_root E:/SageServe_results_p5] [--out bảng.csv]
+Dùng: python experiments/analyze_oracle.py $RESULTS_ROOT/v2/full [--oracle_root $RESULTS_ROOT/p5] [--out bảng.csv]
 Thư mục: ARIMA = <R>/<trace>/<chiến lược>, oracle = <O>/oracle/<trace>/<chiến lược>, oracle_smooth = <O>/oracle_smooth/<trace>/<chiến lược> (O = --oracle_root)."""
 import argparse
 import os

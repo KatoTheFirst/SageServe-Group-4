@@ -1,6 +1,6 @@
 """Bài `burst` cả ngày (§7.2.7, Fig. 16a): sau mỗi burst x8, thời gian đến khi bộ nhớ Llama-2/Bloom hồi về < 70%
 và vi phạm SLA IW trong 1 giờ tính từ đầu burst.
-Dùng: python experiments/analyze_burst_day.py D:/SageServe_results/v2/full/burst
+Dùng: python experiments/analyze_burst_day.py $RESULTS_ROOT/v2/full/burst
 Thời điểm burst: inject_burst.py trên composed_day_3regions_v2 (giây 7200, 55800, 65400)."""
 import glob
 import os

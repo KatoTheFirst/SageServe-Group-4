@@ -1,6 +1,6 @@
 """§7.2.6: phần vi phạm IW-F không lập lịch nào tránh được – request IW-F có thời gian prefill tối thiểu (không chờ) > 1 s.
 Prefill tối thiểu theo độ dài prompt = phân vị 1% của (ttft − trễ định tuyến) trong từng nhóm 256 token, đo trên bài FCFS.
-Dùng: python experiments/analyze_sched_floor.py D:/SageServe_results/v2/full/sched/sla60 traces/composed_day_3regions_12to15_v2.csv"""
+Dùng: python experiments/analyze_sched_floor.py $RESULTS_ROOT/v2/full/sched/sla60 traces/composed_day_3regions_12to15_v2.csv"""
 import glob
 import sys
 
