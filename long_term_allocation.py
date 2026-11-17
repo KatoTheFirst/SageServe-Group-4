@@ -14,8 +14,6 @@ from typing import List
 
 from pulp import LpMinimize, LpProblem, LpStatus, LpVariable, PULP_CBC_CMD, lpSum
 
-from simulator import clock
-
 
 class MilpLongTermAllocation:
     def __init__(self,
@@ -57,6 +55,7 @@ class MilpLongTermAllocation:
             prob += lpSum(cap(i, j) for j in range(self.regions)) >= global_peak[i]
         prob += lpSum(self.gpu_cost[k] * delta[(i, j, k)] + self.startup_cost[i][k] * pos[(i, j, k)] for i, j, k in idx)
         if path:
+            from simulator import clock  # import trễ: tránh circular khi test độc lập
             prob.writeLP(f"{path}/../../ilp_outputs/my_output_at_{clock()}.lp")
         status = prob.solve(PULP_CBC_CMD(msg=0))
         if LpStatus.get(status) != "Optimal":
