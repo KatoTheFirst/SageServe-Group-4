@@ -1,0 +1,8 @@
+# Phụ lục A: cụm H100 (run.sh h100)
+name: h100
+end_time: 86400
+ram_gb: 2.0
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, "trace.filename={trace}", "controller={controller}", "global_arbiter.arima_traces=traces/forecasts/{forecast}", "global_arbiter.theta_file={theta}"]
+runs:
+  - lt4: {vars: {trace: composed_day_3regions_v2, forecast: composed_day_3regions_v2, controller: us3-4models-h100, theta: data/theta_tps_h100_v2.csv}, ref_prefix: h100/}

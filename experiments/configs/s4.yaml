@@ -1,0 +1,9 @@
+# §4, Fig. 8, Table 1: Siloed vs Unified, West, thứ Ba, trace thứ hai (run.sh s4)
+name: s4
+end_time: 86400
+ram_gb: 2.2
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, trace.filename=fork_s4_westus_v2, scaling_level=1]
+runs:
+  - {name: unified, overrides: [controller=us1-4models], ref: s4/unified}
+  - {name: siloed, overrides: [controller=us1-4models-siloed, siloed=True], ref: s4/siloed}

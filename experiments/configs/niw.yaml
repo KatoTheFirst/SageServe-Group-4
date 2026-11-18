@@ -1,0 +1,9 @@
+# Phụ lục A: IW:NIW 9:1 và 1:1 (run.sh niw_ratio)
+name: niw
+end_time: 86400
+ram_gb: 3.4
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, "trace.filename={trace}", "controller={controller}", "global_arbiter.arima_traces=traces/forecasts/{forecast}", "global_arbiter.theta_file={theta}"]
+runs:
+  - lt4: {prefix: niw9/, vars: {trace: composed_day_3regions_niw9_v2, forecast: composed_day_3regions_niw9_v2, controller: us3-4models, theta: data/theta_tps_v2.csv}, ref_prefix: niw9/}
+  - lt4: {prefix: niw1/, vars: {trace: composed_day_3regions_niw1_v2, forecast: composed_day_3regions_niw1_v2, controller: us3-4models, theta: data/theta_tps_v2.csv}, ref_prefix: niw1/}

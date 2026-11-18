@@ -439,7 +439,8 @@ class ORCAInstance(Instance):
         """
         Remove a Task from the batch.
         """
-        self.batch.remove(task)
+        # T38: xóa theo danh tính như list.remove nhưng không gọi __eq__ của dataclass (xem select_batch)
+        del self.batch[next(i for i, t in enumerate(self.batch) if t is task)]
 
         if isinstance(task, PromptTask):
             self.num_prompt_tasks_in_batch -= 1
@@ -477,6 +478,10 @@ class ORCAInstance(Instance):
         for task in old_batch:
             new_batch.append(task)
 
+        # T38: kiểm "đã ở batch" theo danh tính. `task in old_batch` trên list gọi __eq__ do @dataclass sinh ra (so mọi trường của Task
+        # rồi của Request vì node_id đánh lại từ 0 trong mỗi request), chiếm 55–60% thời gian chạy. Batch không chứa hai object khác nhau
+        # mà bằng nhau (tests/test_t38_identity.py), nên kết quả không đổi.
+        in_old = {id(t) for t in old_batch}
         memory = self.memory
         pending = self.pending_requests
         if QUEUE_POLICY != "fcfs":
@@ -486,7 +491,7 @@ class ORCAInstance(Instance):
             if len(new_batch) == self.max_batch_size:
                 break
             task = self.request_tasks[request][0]
-            if task in old_batch:
+            if id(task) in in_old:
                 continue
             if task.state == NodeState.BLOCKED:
                 new_batch.append(task)

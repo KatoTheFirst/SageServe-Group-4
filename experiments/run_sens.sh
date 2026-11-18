@@ -1,12 +1,12 @@
 #!/bin/bash
 # Pha 3 (SENSITIVITY.md): độ nhạy trên bản cắt v2 12–15h (3 giờ), mỗi bài một yếu tố. Tối đa 12 bài cùng lúc.
 # Dùng: PY=... bash experiments/run_sens.sh sens|sens2 [thư mục kết quả]
-#   sens  -> D:/SageServe_results/v2/sens : nền, dạng phút phẳng/gai, khởi động 300/1200 s, Reactive chờ, ε, β, θ ±30%, tải ±50%
-#   sens2 -> D:/SageServe_results/v2/sens2: burst x8 trong/ngoài 20 phút cuối giờ (có LT-UA tắt luật giảm), H100
+#   sens  -> $RESULTS_ROOT/sens : nền, dạng phút phẳng/gai, khởi động 300/1200 s, Reactive chờ, ε, β, θ ±30%, tải ±50%
+#   sens2 -> $RESULTS_ROOT/sens2: burst x8 trong/ngoài 20 phút cuối giờ (có LT-UA tắt luật giảm), H100
 # Cần trace sens_*: python experiments/make_sens_traces.py (script này tự gọi nếu thiếu).
 cd "$(dirname "$0")/.."
 export PYTHONIOENCODING=utf-8
-PY=${PY:-python}; EXP=$1; R=${2:-D:/SageServe_results/v2/$EXP}; MAX=12; BASE=composed_day_3regions_12to15_v2; TH=data/theta_tps_v2.csv
+PY=${PY:-python}; EXP=$1; R=${2:-${RESULTS_ROOT:-results}/$EXP}; MAX=12; BASE=composed_day_3regions_12to15_v2; TH=data/theta_tps_v2.csv
 A() { echo "controller.regions.0.arbiter=$1 controller.regions.1.arbiter=$1 controller.regions.2.arbiter=$1"; }
 [ -f traces/sens_burst_out.csv ] || $PY experiments/make_sens_traces.py
 forecast() { for t in "$@"; do [ -d traces/forecasts/$t ] || $PY generate_causal_arima_forecasts.py --trace traces/$t.csv --output_dir traces/forecasts/$t > /dev/null 2>&1; done; }
