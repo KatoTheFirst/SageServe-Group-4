@@ -431,7 +431,9 @@ class GlobalAribiterMemoryUtilizationScaling(BasicArbiter):
             # if scaled, subtract from changes to make
             if self.scaling_in_progress[model_endpoint.model_name]:
                 self.changes[model_endpoint.model_name] -= 1
-        elif self.changes[model_endpoint.model_name] < 0 and memory_utilisation < SCALE_DOWN_THRESHOLD:
+        elif (self.changes[model_endpoint.model_name] < 0
+              and memory_utilisation < SCALE_DOWN_THRESHOLD
+              and model_endpoint.scaling_level >= 1):
             if self.scale_down_to_spot(model_endpoint):
                 #logging.debug(f"Scaling down {model_endpoint}")
                 self.changes[model_endpoint.model_name] += 1

@@ -11,14 +11,10 @@ import utils
 from metrics import InstanceMetrics
 from node import NodeState
 from performance_model import get_duration, get_iteration_duration
-from simulator import clock, schedule_event, cancel_event, reschedule_event
+from simulator import NIW_PRIORITY_AGE, clock, schedule_event, cancel_event, reschedule_event
 from task import PromptTask, TokenTask
 
 from time import time
-
-# Bài báo §6.1-6.2: NIW ưu tiên 1 (sau IW); NIW đã chờ > 10 h (36000 s) được ngang IW.
-# Thứ tự hàng đợi theo arrival + 36000 cho NIW thể hiện đúng quy tắc này.
-NIW_QUEUE_DELAY = 36000
 
 # Bộ lập lịch hàng đợi cục bộ của instance (§6.5): fcfs | edf | pf | dpa (đặt từ config queue_policy)
 QUEUE_POLICY = "fcfs"
@@ -29,12 +25,12 @@ DPA_TAU_N = 5.0
 
 def queue_key(request, now):
     """Khóa sắp xếp hàng đợi theo QUEUE_POLICY; d_r = thời gian còn lại tới hạn TTFT."""
-    if request.workload_type == "dev":
-        if now - request.arrival_timestamp < NIW_QUEUE_DELAY:
-            return (9, request.arrival_timestamp)            # NIW (ưu tiên 1) xếp sau mọi IW
-        fast, deadline = False, request.arrival_timestamp + NIW_QUEUE_DELAY   # NIW chờ > 10 h: coi như IW
-    else:
+    if request.priority_at(now) == 1:
+        return (9, request.arrival_timestamp)                # NIW (priority 1) xếp sau nhóm priority 0
+    if request.is_interactive:
         fast, deadline = request.scenario == "IW-F", request.arrival_timestamp + request.sla
+    else:
+        fast, deadline = False, request.arrival_timestamp + NIW_PRIORITY_AGE
     if QUEUE_POLICY == "edf":
         return (0, deadline)                                # d_r tăng dần; đã quá hạn (d_r < 0) lên đầu
     if QUEUE_POLICY == "pf":
@@ -281,7 +277,7 @@ class ORCAInstance(Instance):
         ## queues
         # pending requests (not tasks) ordered by arrival time
         # TODO: use an ordered set instead
-        self.pending_requests = SortedList(key=lambda x: (x.arrival_timestamp + NIW_QUEUE_DELAY) if x.workload_type == 'dev' else x.arrival_timestamp)
+        self.pending_requests = SortedList(key=lambda request: request.arrival_timestamp)
         # self.pending_requests = {}
         # separate pending queue for prompt tasks (to prioritize prompts)
         self.pending_prompt_queue = []
@@ -478,10 +474,8 @@ class ORCAInstance(Instance):
             new_batch.append(task)
 
         memory = self.memory
-        pending = self.pending_requests
-        if QUEUE_POLICY != "fcfs":
-            now = clock()
-            pending = sorted(pending, key=lambda r: queue_key(r, now))
+        now = clock()
+        pending = sorted(self.pending_requests, key=lambda request: queue_key(request, now))
         for request in pending:
             if len(new_batch) == self.max_batch_size:
                 break

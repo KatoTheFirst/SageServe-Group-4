@@ -37,7 +37,8 @@ class GlobalArbiter(ABC):
         self.max_time = max_time
 
     def scaling_interval_reached(self) -> bool:
-        return (clock() >= self.last_updated_time + self.long_term_scaling_interval)
+        interval = self.long_term_scaling_interval
+        return clock() // interval > self.last_updated_time // interval
     
 NIW_BUFFER = 0.1    # β (§6.3): 10% tải NIW của giờ trước
 
@@ -97,8 +98,7 @@ class MilpGlobalArbiter(GlobalArbiter):
 
     def predict_hour(self, region_id, model_name, cur_time):
         """Dự báo TPM 60 phút tới (DataFrame Time, Predicted)."""
-        # canh theo phút tròn: ILP chạy ở request đầu tiên sau mốc giờ (vd. 3600,3 s); lọc theo cur_time sẽ bỏ phút đầu
-        # của giờ này và lấy nhầm phút đầu giờ sau (dự báo theo phút, mỗi giờ một lần huấn luyện)
+        # Dự báo theo phút, mỗi giờ một lần huấn luyện.
         start = int(cur_time // 60)
         df = self.forecast_df[region_id][model_name]
         df = df[(df["Time"] >= 60 * start) & (df["Time"] < 60 * start + 3600)]
@@ -197,6 +197,7 @@ class MilpGlobalArbiter(GlobalArbiter):
         current_allocation = current_allocation_transposed
         
         # §6.3: đỉnh dự báo ARIMA (TPM) trong cả giờ tới + β = 10% tải NIW nhận được trong giờ trước
+        minutes = range(int(cur_time // 60) * 60, int(cur_time // 60) * 60 + 3600, 60)
         region_peak = [[0.0] * self.regions for _ in range(self.models)]
         series = [[] for _ in range(self.models)]
         for region_id, region_router in self.region_routers.items():
@@ -210,7 +211,8 @@ class MilpGlobalArbiter(GlobalArbiter):
                 dev = dev[(dev["arrival_timestamp"] >= cur_time - 3600) & (dev["arrival_timestamp"] < cur_time)]
                 beta = NIW_BUFFER * dev["prompt_size"].sum() / 60
                 region_peak[i][region_id] = (df["Predicted"].max() if len(df) else 0) + beta
-                series[i].append(df.set_index("Time")["Predicted"] + beta)
+                tpm = df.set_index("Time")["Predicted"].reindex(minutes, fill_value=0)
+                series[i].append(tpm + beta)
         global_peak = [pd.concat(s_, axis=1).fillna(0).sum(axis=1).max() if s_ else 0 for s_ in series]
         logging.info(f"ILP region peak (TPM): {region_peak}, global peak: {global_peak}")
         return self.milp_allocator.get_ilp_allocations(current_allocation, region_peak, [float(g) for g in global_peak])

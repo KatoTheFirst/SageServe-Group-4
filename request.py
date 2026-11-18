@@ -10,7 +10,7 @@ from executor import Executor
 from flow import Flow
 from metrics import RequestMetrics, GenerativeLLMRequestMetrics, RequestSLO
 from node import Node
-from simulator import clock, inc_fed_count, schedule_event, cancel_event, reschedule_event
+from simulator import NIW_PRIORITY_AGE, clock, inc_fed_count, schedule_event, cancel_event, reschedule_event
 from task import Task, TaskType
 
 import sys
@@ -85,6 +85,14 @@ class Request():
     def __post_init__(self):
         for region in self.regions:
             self.region_priority.append(Region(int(region)))
+
+    @property
+    def is_interactive(self):
+        return self.workload_type == "prod" and self.batch_id == -1
+
+    def priority_at(self, now):
+        """§6.2: IW và NIW đã chờ đủ 10 giờ có priority 0."""
+        return int(not self.is_interactive and now - self.arrival_timestamp < NIW_PRIORITY_AGE)
 
     def __hash__(self):
         """

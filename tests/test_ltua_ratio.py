@@ -54,6 +54,6 @@ def test_router_counts_only_iw_at_origin_region(monkeypatch):
     r.last_reported_allocation_time, r.allocation_interval = 0, 1e9
     r.overheads = NS(routing_delay=0)
     r._select_first_priority_region = lambda q: 0
-    r.route(NS(workload_type="prod", region_priority="102", model_type="m", prompt_size=7))
-    r.route(NS(workload_type="dev", region_priority="102", model_type="m", prompt_size=9))
+    r.route(NS(is_interactive=True, region_priority="102", model_type="m", prompt_size=7))
+    r.route(NS(is_interactive=False, region_priority="102", model_type="m", prompt_size=9))
     assert seen == {0: [], 1: [7]}                          # vùng gốc 1 dù được định tuyến về 0; NIW không tính
