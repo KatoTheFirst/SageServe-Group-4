@@ -1,7 +1,6 @@
 """
 Kiểm thử toàn bộ simulator (end-to-end) trên trace nhỏ tự sinh: 3 vùng x 4 mô hình, request đến trong 1,5 giờ,
-mô phỏng 3 giờ (bội số 3600 s: lần ghi kết quả cuối rơi đúng end_time) – ILP chạy ở giờ 0 và ở thời điểm lẻ sau
-mốc giờ 1 (ILP chỉ chạy khi có request đi qua global router, như mô phỏng thật).
+mô phỏng 3 giờ (bội số 3600 s: lần ghi kết quả cuối rơi đúng end_time) – ILP chạy ở đầu mỗi giờ.
 Bloom ở eastus chỉ khởi đầu 4 instance để có thêm co giãn; nhánh khởi động máy mới từ GPU spot của mô hình khác được
 thử ở lt_i (ILP giờ 0 tăng Llama-2 ở eastus khi vùng này chưa có spot Llama-2).
 Bất biến: không lỗi; mọi request hoàn thành; cooldown >= 15 s giữa hai quyết định co giãn; deployment <= 3 instance;
@@ -70,9 +69,11 @@ def runs(tmp_path_factory):
                "trace=random_trace", f"trace.filename={NAME}", "controller=us3-4models",
                f"global_arbiter.arima_traces=traces/forecasts/{NAME}", f"output_dir={(out / name).as_posix()}",
                "controller.regions.2.model_endpoints.1.instance_count=4"] + args
-        procs[name] = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                       encoding="utf-8", errors="ignore")
-    logs = {name: p.communicate()[0] for name, p in procs.items()}
+        with (out / f"{name}.stdout").open("w", encoding="utf-8") as log:
+            procs[name] = subprocess.Popen(cmd, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+    for process in procs.values():
+        process.wait()
+    logs = {name: (out / f"{name}.stdout").read_text(encoding="utf-8", errors="replace") for name in procs}
     yield trace, out, logs
     os.remove(f"{ROOT}/traces/{NAME}.csv")
     shutil.rmtree(f"{ROOT}/traces/forecasts/{NAME}")
@@ -134,5 +135,7 @@ def test_online_forecast_equals_offline(runs):
     on = pd.read_csv(f"{out}/lt_ua_online/forecast_log.csv")
     off = pd.read_csv(f"{out}/lt_ua_offline/forecast_log.csv")
     m = on.merge(off, on=["hour", "region", "model"], suffixes=("_on", "_off"))
-    assert {0, 1} <= set(m.hour) and len(m[m.hour == 1]) == 12      # giờ 1 phải có đủ 3 vùng x 4 mô hình
-    assert np.allclose(m.pred_peak_tpm_on, m.pred_peak_tpm_off, rtol=1e-4)
+    # File offline phủ tới hết giờ có request cuối; online vẫn dự báo trong phần chạy đuôi.
+    traced_hours = m[m.hour * 3600 < ARRIVE]
+    assert traced_hours.groupby("hour").size().to_dict() == {0: 12, 1: 12}
+    assert np.allclose(traced_hours.pred_peak_tpm_on, traced_hours.pred_peak_tpm_off, rtol=1e-4)

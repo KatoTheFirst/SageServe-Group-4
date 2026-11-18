@@ -376,7 +376,7 @@ class JSQScheduler(Scheduler):
 
 class TokenJSQScheduler(Scheduler):
     """
-    JSQScheduler schedules Requests to the Instance with smallest pending tokens queue.
+    Schedule requests on the instance with the fewest remaining prefill and decode tokens.
     Currently uses an inefficient O(n) search.
     """
     def schedule(self, request, *args, **kwargs):
@@ -399,8 +399,8 @@ class TokenJSQScheduler(Scheduler):
             else:
                 raise ValueError(f"Unsupported node type: {type(node)}")
 
-        # bookkeeping
-        instance.sched_pending_tokens += prompt_task.prompt_size + 1
+        token_task.track_remaining_tokens = True
+        instance.sched_pending_tokens += prompt_task.prompt_size + token_task.token_size
 
 
 class KVRoundRobinScheduler(KVScheduler):

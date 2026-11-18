@@ -177,6 +177,7 @@ class TokenTask(Task):
     generating_tokens: int = 0
     generated_tokens: int = 0
     task_type: TaskType = TaskType.TOKEN
+    track_remaining_tokens: bool = False
 
     def __hash__(self):
         return hash(self.node_id)
@@ -201,6 +202,8 @@ class TokenTask(Task):
 
     def complete_iteration(self):
         # tokens processing
+        if self.track_remaining_tokens:
+            self.instance.sched_pending_tokens -= self.processing_tokens
         self.processed_tokens += self.processing_tokens
         self.request.processed_tokens += self.processing_tokens
         self.generated_tokens += self.generating_tokens
@@ -215,7 +218,8 @@ class TokenTask(Task):
         super().complete()
 
         # update scheduler bookkeeping
-        self.instance.sched_pending_tokens -= 1
+        if not self.track_remaining_tokens:
+            self.instance.sched_pending_tokens -= 1
 
         # ensure that we generated all tokens
         assert self.processed_tokens == self.token_size

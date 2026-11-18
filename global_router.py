@@ -14,6 +14,8 @@ from global_arbiter import GlobalArbiter
 
 import utils
 
+REGION_MEMORY_THRESHOLD = 0.7
+
 class GlobalRouter(ABC):
     """
     Router routes Requests to Regions.
@@ -65,7 +67,14 @@ class GlobalRouter(ABC):
             self.global_arbiter.start_with_8_each()
 
     def run(self):
-        pass
+        if not self.long_term_scaling:
+            return
+        arbiter = self.global_arbiter
+        if arbiter.scaling_interval_reached():
+            arbiter.scale()
+        interval = arbiter.long_term_scaling_interval
+        if clock() + interval < arbiter.max_time:
+            schedule_event(interval, self.run)
 
     @abstractmethod
     def route(self, *args):
@@ -74,9 +83,9 @@ class GlobalRouter(ABC):
         """
         raise NotImplementedError
 
-    def request_arrival(self, request: Request):
+    def request_arrival(self, request: Request, *, region_id=None):
         request.arrive_at_global_router()
-        self.route_request(request)
+        self.route_request(request, region_id=region_id)
 
     def request_completion(self, request: Request):
         request.complete_at_global_router()
@@ -90,8 +99,8 @@ class GlobalRouter(ABC):
         self.results['model_type'].append(request.model_type)
 
 
-    def route_request(self, request: Request):
-        self.route(request)
+    def route_request(self, request: Request, *, region_id=None):
+        self.route(request, region_id=region_id)
 
     def save_results(self):
         utils.save_dict_as_csv(self.results, f"global_router/{self.last_log_iter + 1}.csv")
@@ -119,39 +128,51 @@ class ProbabilisticRouter(GlobalRouter):
     """
     Forwards request to the appropriate scheduler without any overheads.
     """
-    def _select_region(self, request: Request) -> int:
-        # TODO: revisit global routing logic
-        region_priority = request.region_priority
-        assert len(region_priority) == 3, "Request has invalid region priority"
-        region_priority = [c for c in region_priority if int(c) in self.region_routers]  # bỏ vùng không có trong cấu hình (vd. 1 vùng)
-        for choice in region_priority:
-            if request.model_type in self.region_routers[int(choice)].model_endpoint_routers and \
-                self.region_clusters[int(choice)].get_memory(request.model_type) / self.region_clusters[int(choice)].get_max_memory(request.model_type) < 0.7:
-                return choice
-        return min(region_priority, key=lambda x: self.region_clusters[int(x)].get_memory(request.model_type) / self.region_clusters[int(x)].get_max_memory(request.model_type))
-        raise ValueError("Request model type not found in any region")
+    def _candidate_regions(self, request: Request):
+        for choice in request.region_priority:
+            region_id = int(choice)
+            router = self.region_routers.get(region_id)
+            if router is not None and request.model_type in router.model_endpoint_routers:
+                yield region_id
 
-    def _select_first_priority_region(self, request) -> int:
-        region_priority = request.region_priority
-        assert len(region_priority) == 3, "Request has invalid region priority"
-        region_priority = [c for c in region_priority if int(c) in self.region_routers]  # bỏ vùng không có trong cấu hình (vd. 1 vùng)
-        for choice in region_priority:
-            if request.model_type in self.region_routers[int(choice)].model_endpoint_routers:
-                return choice
-        return min(region_priority, key=lambda x: self.region_clusters[int(x)].get_memory(request.model_type) / self.region_clusters[int(x)].get_max_memory(request.model_type))
-        
-    def route(self, request: Request):
+    def _select_region(self, request: Request) -> int:
+        utilizations = {}
+        for region_id in self._candidate_regions(request):
+            cluster = self.region_clusters[region_id]
+            capacity = cluster.get_max_memory(request.model_type)
+            if capacity <= 0:
+                continue
+            utilization = cluster.get_memory(request.model_type) / capacity
+            if utilization < REGION_MEMORY_THRESHOLD:
+                return region_id
+            utilizations[region_id] = utilization
+        if utilizations:
+            return min(utilizations, key=utilizations.get)
+        raise ValueError(f"No preferred region can serve {request.model_type}")
+
+    def _select_first_priority_region(self, request: Request) -> int:
+        region_id = next(self._candidate_regions(request), None)
+        if region_id is None:
+            raise ValueError(f"No preferred region hosts {request.model_type}")
+        return region_id
+
+    def route(self, request: Request, *, region_id=None):
         if self.long_term_scaling and self.global_arbiter.scaling_interval_reached():
             self.global_arbiter.scale()
-        if self.long_term_scaling and request.workload_type == "prod":
-            self.global_arbiter.observe(int(request.region_priority[0]), request.model_type, request.prompt_size)
-            self.region_routers[int(request.region_priority[0])].model_endpoint_routers[request.model_type].record_iw_tokens(request.prompt_size)
+        if self.long_term_scaling and request.is_interactive:
+            origin = int(request.region_priority[0])
+            origin_router = self.region_routers.get(origin)
+            if origin_router is not None and request.model_type in origin_router.model_endpoint_routers:
+                self.global_arbiter.observe(origin, request.model_type, request.prompt_size)
+                origin_router.model_endpoint_routers[request.model_type].record_iw_tokens(request.prompt_size)
         if clock() > self.last_reported_allocation_time + self.allocation_interval:
             self.last_reported_allocation_time = clock()
-        if self.long_term_scaling and self.no_reroute:
-            router = self.region_routers[int(self._select_first_priority_region(request))]
-        else:
-            router = self.region_routers[int(self._select_region(request))]
+        if region_id is None:
+            if self.long_term_scaling and self.no_reroute:
+                region_id = self._select_first_priority_region(request)
+            else:
+                region_id = self._select_region(request)
+        router = self.region_routers[region_id]
         f = lambda router=router,request=request: \
             router.request_arrival(request)
         schedule_event(self.overheads.routing_delay, f)

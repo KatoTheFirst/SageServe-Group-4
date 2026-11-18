@@ -8,8 +8,11 @@ import yaml
 
 import allocator
 import arbiter
+import global_arbiter as GA
 import global_router as GR
 import model_endpoint_router as M
+from request import GenerativeLLMRequest
+from scheduler import TokenJSQScheduler
 import simulator
 
 
@@ -42,7 +45,10 @@ def test_reactive_thresholds(monkeypatch, mem, want):
 
 
 # §6.4 LT-U: chỉ tăng khi còn δ > 0 và bộ nhớ > 70%; chỉ giảm khi còn δ < 0 và bộ nhớ < 30%
-@pytest.mark.parametrize("delta,mem,want,left", [(1, 0.8, ["up"], 0), (1, 0.5, [], 1), (0, 0.9, [], 0), (-1, 0.2, ["down"], 0), (-1, 0.5, [], -1), (0, 0.1, [], 0)])
+@pytest.mark.parametrize("delta,mem,want,left", [
+    (1, 0.71, ["up"], 0), (1, 0.70, [], 1), (0, 0.9, [], 0),
+    (-1, 0.29, ["down"], 0), (-1, 0.30, [], -1), (0, 0.1, [], 0),
+])
 def test_lt_u_defers_until_memory_breach(monkeypatch, delta, mem, want, left):
     a = stub(arbiter.GlobalAribiterMemoryUtilizationScaling, monkeypatch, changes={"m": delta})
     a.scale(endpoint(mem))
@@ -55,6 +61,36 @@ def test_lt_i_does_not_react_to_memory(monkeypatch):
     a.scale(endpoint(0.99))
     a.scale(endpoint(0.01))
     assert a.calls == []
+
+
+def test_lt_i_applies_hourly_plan_without_arrivals(monkeypatch):
+    now = 0
+    events = []
+    monkeypatch.setattr(GA, "clock", lambda: now)
+    monkeypatch.setattr(GR, "clock", lambda: now)
+    monkeypatch.setattr(GR, "schedule_event", lambda delay, fn: events.append((now + delay, fn)))
+    monkeypatch.setattr(GA, "schedule_event", lambda delay, fn: fn())
+    local = stub(arbiter.GlobalArbiterAwareShortTermArbiter, monkeypatch)
+    ep = endpoint(0.5)
+    plan = object.__new__(GA.MilpGlobalArbiter)
+    GA.GlobalArbiter.__init__(plan, long_term_scaling_interval=3600, max_time=7200)
+    plan.regions, plan.models, plan.model_list = 1, 1, ["m"]
+    plan.arima_traces = None
+    plan.post_processing_strategy = "immediate"
+    plan.current_allocations = lambda: [[[0]]]
+    plan.get_ilp_forecast = lambda _: [[[2 if now == 0 else -1]]]
+    plan.region_clusters = {0: NS(arbiter=local)}
+    plan.region_routers = {0: NS(model_endpoint_routers={"m": ep})}
+    router = object.__new__(GR.ProbabilisticRouter)
+    router.long_term_scaling, router.global_arbiter = True, plan
+
+    router.run()
+    assert local.calls == ["up", "up"]
+    now, tick = events.pop()
+    assert now == 3600
+    tick()
+    assert local.calls == ["up", "up", "down"]
+    assert not plan.scaling_interval_reached()
 
 
 def lt_ua(monkeypatch, second_of_hour, predicted, observed, delta=0, mem=0.5):
@@ -97,12 +133,26 @@ def test_niw_feed_rate(monkeypatch, mem, n):
 
 
 # §6.1 Global: vùng đầu tiên theo thứ tự có bộ nhớ < 70%; không vùng nào thì vùng bộ nhớ thấp nhất
-@pytest.mark.parametrize("mems,want", [([0.5, 0.1, 0.1], "0"), ([0.7, 0.6, 0.1], "1"), ([0.9, 0.8, 0.75], "2")])
+@pytest.mark.parametrize("mems,want", [([0.5, 0.1, 0.1], 0), ([0.7, 0.6, 0.1], 1), ([0.9, 0.8, 0.75], 2)])
 def test_global_routing(mems, want):
     r = object.__new__(GR.ProbabilisticRouter)
     r.region_routers = {i: NS(model_endpoint_routers={"m": 1}) for i in range(3)}
     r.region_clusters = {i: NS(get_memory=lambda m, i=i: mems[i], get_max_memory=lambda m: 1.0) for i in range(3)}
     assert r._select_region(NS(region_priority="012", model_type="m")) == want
+
+
+def test_global_fallback_skips_missing_model_and_empty_endpoint():
+    router = object.__new__(GR.ProbabilisticRouter)
+    router.region_routers = {
+        0: NS(model_endpoint_routers={}),
+        1: NS(model_endpoint_routers={"m": 1}),
+        2: NS(model_endpoint_routers={"m": 1}),
+    }
+    router.region_clusters = {
+        1: NS(get_max_memory=lambda m: 0),
+        2: NS(get_max_memory=lambda m: 1.0, get_memory=lambda m: 0.8),
+    }
+    assert router._select_region(NS(region_priority="012", model_type="m")) == 2
 
 
 # §6.1 Vùng: deployment có bộ nhớ hiệu dụng thấp nhất, bỏ deployment chưa phục vụ
@@ -114,10 +164,38 @@ def test_endpoint_routes_to_least_loaded_serving_deployment(monkeypatch):
     ep.short_term_scaling = False
     ep.overheads = NS(routing_delay=0)
     app = lambda i, mem, cap: NS(application_id=i, get_memory=lambda: mem, get_max_memory=lambda: cap)
-    ep.applications = [app(0, 0.8, 1.0), app(1, 0.2, 1.0), app(2, 0.0, 0.0)]
-    ep.schedulers = {i: NS(request_arrival=lambda q, i=i: seen.append(i)) for i in range(3)}
+    ep.applications = [app(0, 0.8, 1.0), app(4, 0.2, 1.0), app(5, 0.0, 0.0)]
+    ep.schedulers = {i: NS(request_arrival=lambda q, i=i: seen.append(i)) for i in (0, 4, 5)}
     ep.route(NS())
-    assert seen == [1]
+    assert seen == [4]
+
+
+def test_token_jsq_counts_decode_work_until_it_is_processed():
+    def request(request_id, prompt, output):
+        return GenerativeLLMRequest(
+            request_id=request_id, batch_id=-1, client_tenant=0, request_type=2,
+            scenario="IW-F", sla=1, utility=1, regions="012", model_type="m",
+            workload_type="prod", application_id=0, prompt_size=prompt, token_size=output,
+        )
+
+    jsq = object.__new__(TokenJSQScheduler)
+    first, second = NS(sched_pending_tokens=0), NS(sched_pending_tokens=50)
+    jsq.instances = [first, second]
+    long_request = request(1, prompt=5, output=101)
+    jsq.schedule(long_request)
+    token_task = next(long_request.successors(long_request.root_node))
+    assert first.sched_pending_tokens == 105
+
+    short_request = request(2, prompt=5, output=1)
+    jsq.schedule(short_request)
+    assert short_request.root_node.instance is second
+
+    token_task.processing_tokens = 60
+    token_task.complete_iteration()
+    assert first.sched_pending_tokens == 45
+    next_request = request(3, prompt=5, output=1)
+    jsq.schedule(next_request)
+    assert next_request.root_node.instance is first
 
 
 # §7.1 Spot: trung vị 1 phút, tối đa 5 phút
