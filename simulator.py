@@ -1,7 +1,7 @@
 import heapq
 import logging
 
-from collections import defaultdict
+from collections import defaultdict, deque
 import os
 
 import utils
@@ -20,6 +20,9 @@ fed_count = 0
 # Bài báo không nêu chu kỳ báo -> chọn 1 s. Số request mỗi lần thả lấy từ feed_async_granularity.
 NIW_SIGNAL_INTERVAL = 1
 NIW_SIGNAL_GRANULARITY = 1
+NIW_PRIORITY_AGE = 10 * 60 * 60
+
+
 class Event:
     """
     Events are scheduled actions in the simulator.
@@ -120,21 +123,6 @@ class TraceSimulator(Simulator):
         self.arrival_queue.put(event)
         return event
 
-    def feed_async(self):
-        """
-        Feed async requests from the trace as arrival
-        events.
-        """
-        print("wrong function invoked")
-        if len(sim.batch_prod) > 0:
-            request = sim.batch_prod.pop(0)
-        elif len(sim.opp) > 0:
-            request = sim.opp.pop(0)
-        else:
-            print("Async Queue Empty")
-            return
-        sim.schedule(0, lambda request=request: sim.global_router.request_arrival(request))
-
     def niw_signal_tick(self):
         """
         Bài báo §6.1: mỗi endpoint định kỳ báo Queue Manager khi bộ nhớ < 60% để nhận NIW
@@ -232,29 +220,13 @@ class TraceSimulator(Simulator):
         """
         for request in requests:
             # Siloed (§4): NIW có nhóm instance riêng (-d) nên đi thẳng tới đó, không qua Queue Manager
-            if (request.workload_type == "prod" and request.batch_id == -1) or \
-                    (self.trace.siloed and request.workload_type == "dev"):
+            if request.is_interactive or (self.trace.siloed and request.workload_type == "dev"):
                 self.schedule_request_arrival(request.arrival_timestamp - self.time,
                           lambda self=self,request=request: self.global_router.request_arrival(request))
-            elif request.workload_type == "prod" and request.batch_id != -1:
-                if request.model_type not in self.batch_prod:
-                    self.batch_prod[request.model_type] = {}
-                if request.region_priority[0] not in self.batch_prod[request.model_type]:
-                    self.batch_prod[request.model_type][request.region_priority[0]] = []
-                self.batch_prod[request.model_type][request.region_priority[0]].append(request)
             else:
-                if request.model_type not in self.opp:
-                    self.opp[request.model_type] = {}
-                if request.region_priority[0] not in self.opp[request.model_type]:
-                    self.opp[request.model_type][request.region_priority[0]] = []
-                self.opp[request.model_type][request.region_priority[0]].append(request)
-        # TODO: assuming the requests are sorted already
-        # for model_type in self.batch_prod:
-        #     for region_id in self.batch_prod[model_type]:
-        #         self.batch_prod[model_type][region_id].sort(key=lambda x: x.arrival_timestamp)
-        # for model_type in self.opp:
-        #     for region_id in self.opp[model_type]:
-        #         self.opp[model_type][region_id].sort(key=lambda x: x.arrival_timestamp)
+                queues = self.batch_prod if request.workload_type == "prod" else self.opp
+                queue = queues.setdefault(request.model_type, {}).setdefault(request.region_priority[0], deque())
+                queue.append(request)
   
     def add_controller(self, controller):
         self.controller = controller
@@ -392,43 +364,19 @@ def feed_async(region, model_name, feed_async_granularity):
     for _ in range(n * feed_async_granularity):
         feed_async_helper(region, model_name)
 
-def _niw_ready(queue):
-    # Trace được đọc trước nhiều request; NIW chỉ được thả khi đồng hồ mô phỏng đã tới thời điểm gửi.
-    return len(queue) > 0 and queue[0].arrival_timestamp <= clock()
-
-
 def feed_async_helper(region, model_name):
-    """
-    Feed n async requests from the trace as arrival events.
-    """
+    """Thả một NIW đã đến tới endpoint vừa báo còn bộ nhớ."""
     global async_count
-    
-    # mem_util = region.region_cluster.get_memory(model_name) / region.region_cluster.get_max_memory(model_name)
-    # print(mem_util)
-    # num_async = 0
-    # if mem_util > 0.6:
-    #     # print(clock(), "Memory usage high, not feeding", region.region_name, model_name, mem_util)
-    #     num_async = 0
-    # elif mem_util > 0.3:
-    #     num_async = 1
-    # else:
-    #     num_async = 2
-    # # print(region.region_name, model_name, sim.opp.keys())
-    # for _ in range(num_async):
-    batch_prod = sim.batch_prod.get(model_name, {}).get(region.region_id, [])
-    opp = sim.opp.get(model_name, {}).get(region.region_id, [])
-    if _niw_ready(batch_prod):
-        request = batch_prod.pop(0)
-    elif _niw_ready(opp):
-        request = opp.pop(0)
-    else:
-        # print("Async Queue Empty", region.region_name, model_name)
-        # for m in sim.opp.keys():
-        #     print([(m, r, len(c)) for r, c in sim.opp[m].items()])
+    now = clock()
+    batch_prod = sim.batch_prod.get(model_name, {}).get(region.region_id)
+    opp = sim.opp.get(model_name, {}).get(region.region_id)
+    ready = [queue for queue in (batch_prod, opp) if queue and queue[0].arrival_timestamp <= now]
+    if not ready:
         return
+    queue = min(ready, key=lambda q: q[0].priority_at(now))
+    request = queue.popleft()
     async_count += 1
-    # print(clock(), "Feeding async request", region.region_name, model_name, request.request_id)
-    sim.schedule(0, lambda request=request: sim.global_router.request_arrival(request))
+    sim.global_router.request_arrival(request, region_id=region.region_id)
 
 def inc_fed_count():
     global fed_count

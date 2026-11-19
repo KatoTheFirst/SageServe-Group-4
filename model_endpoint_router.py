@@ -151,10 +151,14 @@ class RoundRobin(ModelEndpointRouter):
 
         # bài báo §6.1: deployment có bộ nhớ hiệu dụng thấp nhất; scheduler chọn instance ít token chờ nhất
         # deployment chỉ có instance đang lấy lại / khởi động (chưa phục vụ) thì chưa nhận request
-        serving = [a for a in self.applications if a.get_max_memory() > 0]
-        app_id = min(serving, key=lambda a: a.get_memory() / a.get_max_memory()).application_id
-        scheduler = self.schedulers[list(self.schedulers.keys())[app_id]]
-
+        utilizations = {}
+        for app in self.applications:
+            capacity = app.get_max_memory()
+            if capacity > 0:
+                utilizations[app.application_id] = app.get_memory() / capacity
+        if not utilizations:
+            raise ValueError(f"No serving deployment for {self.model_name}")
+        scheduler = self.schedulers[min(utilizations, key=utilizations.get)]
 
         f = lambda scheduler=scheduler,request=request: \
             scheduler.request_arrival(request)

@@ -137,12 +137,12 @@ tối đa instance, NIW hoàn thành) trên kết quả bất kỳ. LT-I trượ
 | Phần | Theo bài báo | Lựa chọn khi bài báo không cho số |
 |---|---|---|
 | Co giãn | bộ nhớ hiệu dụng > 70% thêm, < 30% bớt; cooldown 15 s; khởi động 600 s; lấy lại spot trung vị 60 s, tối đa 300 s | spot: log-normal |
-| NIW | Queue Manager: < 60% đưa 1, < 50% đưa 2; NIW sau IW, ngang IW sau 10 h; Siloed: NIW vào thẳng nhóm `-d` | tín hiệu mỗi 1 s |
+| NIW | Queue Manager: < 60% đưa 1, < 50% đưa 2 tới vùng phát tín hiệu. NIW (gồm batch prod) có priority 1 khi tuổi < 10 h và priority 0 từ đúng 10 h, ngang IW. Siloed: NIW vào thẳng nhóm `-d` | tín hiệu mỗi 1 s |
 | ILP §5 | ràng buộc từng vùng ≥ ε·đỉnh, toàn cục ≥ đỉnh tổng, δ ≥ −n; min α·δ + σ·max(δ,0); đỉnh dự báo cả giờ tới; β = 10% tải NIW giờ trước | ε = 0,9; σ = α·600/3600; θ đo bằng `benchmark_theta.py` (mục 2) |
 | Dự báo | ARIMA cửa sổ 60 phút, TPM, dự báo 60 phút, mỗi giờ (nhân quả) | giờ 0 = trung bình giờ 0 |
 | Load Predictor | `global_arbiter.forecast_mode=online`: mỗi giờ huấn luyện ARIMA-60 trên TPM quan sát trong simulator (online so với offline: mô phỏng trùng khớp (compare_runs TRÙNG); dự báo lệch tương đối ≤ 6e-6 (≤ 0,005 TPM) do file offline làm tròn 2 chữ số); cả hai ghi `forecast_log.csv` (đỉnh/trung bình dự báo vs thực tế theo giờ). Cửa sổ dự báo canh theo phút tròn (trước 26/10 lấy nhầm phút đầu giờ sau → kết quả LT cũ hơi cấp thừa máy khi tải tăng) | — |
-| LT-I / LT-U / LT-UA | §6.4; LT-UA: 20 phút cuối giờ, tải ≥ 5x dự báo → tăng, ≤ 0,5x → giảm. Tải so sánh là input TPS của IW theo vùng gốc, cùng đại lượng với dự báo (trước 2/11 đếm cả NIW và lưu lượng chuyển vùng) | — |
-| Định tuyến | chuyển vùng khi quá tải; trễ chuyển vùng 90% ≤ 500 ms, < 2% tới 2,5 s | dạng phân phối |
+| LT-I / LT-U / LT-UA | §6.4; ILP chạy ở mốc đầu mỗi giờ. LT-I áp dụng mục tiêu ngay. LT-U tiến tới mục tiêu khi bộ nhớ hiệu dụng > 70% (tăng) hoặc < 30% (giảm). LT-UA: 20 phút cuối giờ, tải ≥ 5x dự báo → tăng, ≤ 0,5x → giảm. Tải so sánh là input TPS của IW theo vùng gốc, cùng đại lượng với dự báo | `bash experiments/run.sh lt` |
+| Định tuyến | chọn vùng phục vụ đầu tiên trong danh sách ưu tiên có bộ nhớ hiệu dụng < 70%; nếu các vùng phục vụ đều đạt ngưỡng, chọn vùng ít tải nhất. Trong vùng, chọn deployment có tỷ lệ bộ nhớ hiệu dụng thấp nhất rồi dùng JSQ theo tổng token prefill và decode còn lại | — |
 | Bộ lập lịch §6.5 | FCFS / EDF / PF / DPA (`queue_policy`) | τ_p = 1 s, τ_n = 5 s |
 | Chiron | 10/5/5 mỗi mô hình mỗi vùng, Θ = 0,6 | profile offline từ bảng hiệu năng (batch 64) |
 | GPU | bài báo không nói rõ GPU của thí nghiệm chính → giữ A100 như code gốc; H100 cho Phụ lục A | — |
