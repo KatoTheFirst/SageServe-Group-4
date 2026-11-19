@@ -1,0 +1,11 @@
+# Chẩn đoán Table 1 (D18): §4 Unified với tải đúng §4 (1,4M IW/ngày), mọi thứ khác như s4 (run.sh s4load).
+# Override lấy từ .hydra của bài v2 cũ $RESULTS_ROOT/p5/s4load/unified (3/11, code trước v2.1-fix); seed mặc định (0), như bài cũ.
+# Cần traces/diag_fork_s4_westus_load.csv (không có trong Release, xem REPRODUCE.md).
+# ram_gb chưa đo (bài cũ chạy trước khi có đo RSS): trace 108 MB, gần cỡ trace niw1 (186 MB, 3,38 GB đỉnh) -> lấy 3,4 như niw.yaml.
+name: s4load
+end_time: 86400
+ram_gb: 3.4
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, trace.filename=diag_fork_s4_westus_load, scaling_level=1]
+runs:
+  - {name: unified, overrides: [controller=us1-4models], ref: s4load/unified}
