@@ -15,7 +15,7 @@ Viết cho người không đọc code. Mọi lệnh chạy trong **Git Bash** (
 | 4. Kiểm thử | `python -m pytest` | khoảng 5 phút (đo: 5 phút 9 giây) | Dòng cuối `101 passed`, không có `failed` |
 | 5. Chạy thử | `bash experiments/run.sh s4 300` (§4, chỉ 300 giây mô phỏng) | vài giây (đo: 6 s) | Dòng cuối `[+] Xong s4`; có `results/s4/unified/run.log` với dòng cuối chứa `TraceSimulator completed at 300`. Bài 300 s chỉ để thử máy chạy được: chưa có số để phân tích (mục 3) |
 
-Lệnh bước 3: `python fetch_traces.py --v2` (tải 12 trace + dự báo từ Release `traces-v2`, khoảng 320 MB, kiểm sha256; chạy lại thì bỏ qua file đã đúng). Cách khác không cần Python:
+Lệnh bước 3: `python fetch_traces.py --v2` (tải 12 trace + dự báo từ Release `traces-v2`, khoảng 320 MB, kiểm sha256; chạy lại thì bỏ qua file đã đúng; sinh thêm trace chẩn đoán `diag_fork_s4_westus_load` cho `s4load`, khoảng 4 phút). Cách khác không cần Python:
 
 ```bash
 B=https://github.com/KatoTheFirst/SageServe-Group-4/releases/download/traces-v2

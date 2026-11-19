@@ -28,7 +28,7 @@ curl -sSLO $B/SHA256SUMS_forecasts_v2
 tr -d '\r' < traces/SHA256SUMS_v2 | sha256sum -c && sha256sum -c SHA256SUMS_forecasts_v2   # tr: git trên Windows checkout file này với CRLF
 ```
 
-Trace độ nhạy `traces/sens_*.csv` không có trong Release: sinh bằng `python experiments/make_sens_traces.py`. Trace chẩn đoán `traces/diag_fork_s4_westus_load.csv` (dòng Table 1 của RESULTS.md) cũng không có. Trace v2 sinh từ v1 bằng `make_trace_v2.py`; mỗi cờ sửa đúng một cổng trượt của `docs/TRACE_SPEC.md` (D2, D3, D8 trong `DECISIONS.md`). Chấm trace: `python qualify_trace.py <trace> --role t7|t11 ...`.
+Trace độ nhạy `traces/sens_*.csv` không có trong Release: sinh bằng `python experiments/make_sens_traces.py`. Trace chẩn đoán `traces/diag_fork_s4_westus_load.csv` (dòng Table 1 của RESULTS.md) cũng không có: `python fetch_traces.py --v2` tự sinh (`fork_trace.py --rate_scale 0.1139 --start_day 1 --days 1 --regions 0` rồi `make_trace_v2.py` cùng cờ với `fork_s4_westus_v2`, D18; khoảng 4 phút) và kiểm sha256. Trace v2 sinh từ v1 bằng `make_trace_v2.py`; mỗi cờ sửa đúng một cổng trượt của `docs/TRACE_SPEC.md` (D2, D3, D8 trong `DECISIONS.md`). Chấm trace: `python qualify_trace.py <trace> --role t7|t11 ...`.
 
 | Trace v2 | Lệnh (từ trace v1 cùng tên) |
 |---|---|

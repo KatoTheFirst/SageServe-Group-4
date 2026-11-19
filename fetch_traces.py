@@ -6,12 +6,17 @@ Dùng: python fetch_traces.py [--repo KatoTheFirst/SageServe-Group-4] [--tag tra
       python fetch_traces.py --v2 [--only composed_day_3regions_v2 ...]
 --v2: tải trace v2 (Release `traces-v2`, sha256 theo traces/SHA256SUMS_v2) và dự báo v2 (forecasts_v2.tar.gz -> traces/forecasts/,
 sha256 theo SHA256SUMS_forecasts_v2 của Release). File sha256 đọc bỏ ký tự CR và dấu '*' (git trên Windows checkout CRLF).
+--v2 còn sinh trace chẩn đoán traces/diag_fork_s4_westus_load.csv (Table 1, D18; không có trong Release) bằng fork_trace.py +
+make_trace_v2.py, khoảng 4 phút, kiểm sha256 (DIAG); đã có và đúng sha256 thì bỏ qua.
 """
 import argparse
 import gzip
 import hashlib
 import os
 import shutil
+import subprocess
+import sys
+import tempfile
 import tarfile
 import urllib.request
 
@@ -51,11 +56,35 @@ def download_gz(url, dst, want):
     print(f"[+] {dst} đúng sha256")
 
 
+# Trace chẩn đoán Table 1 (D18): §4 Unified với tải đúng §4 (1,39M IW/ngày) = lệnh của fork_s4_westus với --rate_scale 0.1139, rồi cùng lệnh v2.
+# Sinh lại ngày 19/11/2026 trùng sha256 với file đã dùng cho p5/s4load.
+DIAG = {"diag_fork_s4_westus_load": ("d3f522dc2f0f0f7fcef5c698e9faffc365c26d7bd09ab248ac723896ff2c2ba7",
+                                      ["--rate_scale", "0.1139", "--start_day", "1", "--days", "1", "--regions", "0"],
+                                      ["--niw_ratio", "7", "--clip_max", "9", "--spikes", "IW", "1.77", "1.77", "--spikes", "NIW", "2.5", "3.75"])}
+
+
+def gen_diag(name):
+    want, fork_args, v2_args = DIAG[name]
+    dst = f"traces/{name}.csv"
+    if os.path.exists(dst) and sha256(dst) == want:
+        print(f"[=] {dst} đã có, đúng sha256")
+        return
+    print(f"[*] sinh {dst} (fork_trace.py + make_trace_v2.py, khoảng 4 phút)")
+    with tempfile.TemporaryDirectory() as tmp:
+        v1, out = os.path.join(tmp, "v1.csv"), os.path.join(tmp, "v2.csv")
+        subprocess.run([sys.executable, "fork_trace.py", *fork_args, "--output_csv", v1], check=True)
+        subprocess.run([sys.executable, "make_trace_v2.py", v1, out, *v2_args], check=True)
+        if sha256(out) != want:
+            raise SystemExit(f"[!] sinh {name} sai sha256: {sha256(out)}")
+        shutil.move(out, dst)
+    print(f"[+] {dst} đúng sha256")
+
+
 def fetch_v2(a):
     base = a.base or f"https://github.com/{a.repo}/releases/download/traces-v2"
     sums = read_sums("traces/SHA256SUMS_v2")
     names = [os.path.basename(k)[:-4] for k in sums if k.startswith("traces/")]
-    for t in a.only or names:
+    for t in [x for x in a.only or names if x not in DIAG]:
         dst, want = f"traces/{t}.csv", sums[f"traces/{t}.csv"]
         if os.path.exists(dst) and sha256(dst) == want:
             print(f"[=] {dst} đã có, đúng sha256")
@@ -81,6 +110,8 @@ def fetch_v2(a):
         if bad:
             raise SystemExit(f"[!] sau khi giải nén vẫn sai {len(bad)} file dự báo, ví dụ {bad[0]}")
     print(f"[+] dự báo v2: {len(fsums)} file đúng sha256")
+    for t in [x for x in a.only or DIAG if x in DIAG]:
+        gen_diag(t)
 
 
 def main():
