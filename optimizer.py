@@ -242,7 +242,8 @@ class Optimizer:
     @staticmethod
     def _log_time_limit(prob, log_path):
         """D37b: CBC dừng trước khi chứng minh gapRel (thường do hết ILP_TIME_LIMIT): ghi mục tiêu, cận dưới, gap."""
-        text = open(log_path, encoding="utf-8", errors="replace").read()
+        with open(log_path, encoding="utf-8", errors="replace") as f:      # đóng ngay để os.remove trong solve() không bị khóa trên Windows
+            text = f.read()
         result = re.search(r"Result - (.*)", text)
         bound = re.search(r"Lower bound:\s*(\S+)", text)
         obj = prob.objective.value()
