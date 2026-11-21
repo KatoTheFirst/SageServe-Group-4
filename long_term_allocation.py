@@ -57,7 +57,8 @@ class MilpLongTermAllocation:
         if path:
             from simulator import clock  # import trễ: tránh circular khi test độc lập
             prob.writeLP(f"{path}/../../ilp_outputs/my_output_at_{clock()}.lp")
-        status = prob.solve(PULP_CBC_CMD(msg=0))
+        # D37: dừng khi khoảng cách tương đối ≤ 0,01% (20×20×5: CBC mặc định > 6 phút, có ngưỡng ≤ 31 s; 4×3×1 δ không đổi)
+        status = prob.solve(PULP_CBC_CMD(msg=0, gapRel=1e-4))
         if LpStatus.get(status) != "Optimal":
             # §5 dùng "optimal number of changes": không có nghiệm tối ưu thì giữ cấu hình hiện tại (δ = 0) và cảnh báo (D30)
             logging.warning(f"ILP không có nghiệm tối ưu (trạng thái {LpStatus.get(status, status)}): giữ cấu hình hiện tại")

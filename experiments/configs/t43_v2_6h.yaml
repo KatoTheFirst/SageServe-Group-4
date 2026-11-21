@@ -1,0 +1,9 @@
+# T43 (Tuần 9): đoạn ngắn trên trace v2 (6 h, như nv2_6h) để kiểm LT-UA có đánh giá tỷ lệ và khác LT-U (D38). Cùng tham số với t43_dev.yaml.
+name: t43_v2_6h
+end_time: 21600
+ram_gb: 2.6
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, trace.filename=composed_day_3regions_v2]
+runs:
+  - lt4: {overrides: [controller=us3-4models, global_arbiter.arima_traces=traces/forecasts/composed_day_3regions_v2, global_arbiter.theta_file=data/theta_tps_v2.csv, global_arbiter.forecast_mode=online]}
+  - {name: chiron, overrides: [controller=us3-4models-chiron, siloed=True]}
