@@ -9,6 +9,9 @@ from simulator import clock, schedule_event, cancel_event, reschedule_event
 
 from time import time
 
+MIN_DEPLOYMENT_INSTANCES = 2
+MAX_DEPLOYMENT_INSTANCES = 3
+
 class ModelEndpointRouter(ABC):
     """
     Router routes Requests to Application Schedulers.
@@ -20,7 +23,9 @@ class ModelEndpointRouter(ABC):
                  scaling_interval,
                  scaling_level,
                  short_term_scaling,
-                 overheads):
+                 overheads,
+                 min_instances=MIN_DEPLOYMENT_INSTANCES,
+                 max_instances=None):
         self.region = region
         self.model_name = model_name
         self.overheads = overheads
@@ -40,6 +45,10 @@ class ModelEndpointRouter(ABC):
         self.last_scale_timestamp = -1e9
 
         self.short_term_scaling = short_term_scaling
+        if min_instances < MIN_DEPLOYMENT_INSTANCES or (max_instances is not None and max_instances < min_instances):
+            raise ValueError(f"Invalid instance limits for {model_name}")
+        self.min_instances = min_instances
+        self.max_instances = max_instances
 
     def add_application(self, application):
         self.applications.append(application)
@@ -93,7 +102,14 @@ class ModelEndpointRouter(ABC):
 
     def instance_count(self):
         """Số instance của endpoint, kể cả đang lấy lại spot / khởi động (như arbiter.size)."""
-        return sum(len(app.instances) + app.pending_instances for app in self.applications)
+        return sum(self.instance_counts())
+
+    def instance_counts(self):
+        """Return the ready and pending instance counts."""
+        return (
+            sum(len(app.instances) for app in self.applications),
+            sum(app.pending_instances for app in self.applications),
+        )
 
     def get_max_memory(self):
         """
@@ -119,8 +135,8 @@ class RoundRobin(ModelEndpointRouter):
     NOTE: This is JSQ
     TODO: Rename
     """
-    def __init__(self, region, model_name, start_state, scaling_interval, scaling_level, short_term_scaling, overheads):
-        super().__init__(region, model_name, start_state, scaling_interval, scaling_level, short_term_scaling, overheads)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.idx = -1
         self.current_request = None
         self.recent_tokens = deque()     # (thời điểm, prompt_size) của IW có vùng gốc ở đây, 60 s gần nhất – cùng đại lượng với dự báo ARIMA mà LT-UA so (§6.4)
@@ -138,7 +154,6 @@ class RoundRobin(ModelEndpointRouter):
     Forwards request to the appropriate scheduler without any overheads.
     """
     def route(self, request):
-        # start_time = time()
         if self.short_term_scaling and clock() > self.last_scale_timestamp + self.scaling_interval:
             self.current_request = request
             # §7.1 "cooldown period of 15s between scaling events" (D30, theo patch T24 của Đoàn Việt Đức; áp cho mọi chiến lược):
@@ -149,6 +164,9 @@ class RoundRobin(ModelEndpointRouter):
             if self.instance_count() != before:
                 self.last_scale_timestamp = clock()
 
+        schedule_event(self.overheads.routing_delay, lambda: self.dispatch(request))
+
+    def dispatch(self, request):
         # bài báo §6.1: deployment có bộ nhớ hiệu dụng thấp nhất; scheduler chọn instance ít token chờ nhất
         # deployment chỉ có instance đang lấy lại / khởi động (chưa phục vụ) thì chưa nhận request
         utilizations = {}
@@ -159,18 +177,15 @@ class RoundRobin(ModelEndpointRouter):
         if not utilizations:
             raise ValueError(f"No serving deployment for {self.model_name}")
         scheduler = self.schedulers[min(utilizations, key=utilizations.get)]
-
-        f = lambda scheduler=scheduler,request=request: \
-            scheduler.request_arrival(request)
-        schedule_event(self.overheads.routing_delay, f)
+        scheduler.request_arrival(request)
 
 class ChironRoundRobin(RoundRobin):
     """
     Chiron model endpoint router.
     """
     
-    def __init__(self, region, model_name, start_state, scaling_interval, scaling_level, short_term_scaling, overheads):
-        super().__init__(region, model_name, start_state, scaling_interval, scaling_level, short_term_scaling, overheads)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.prompt_time = 10
         self.decode_throughput = 100
     def set_prompt_time(self, prompt_time):

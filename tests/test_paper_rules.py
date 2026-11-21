@@ -11,6 +11,7 @@ import arbiter
 import global_arbiter as GA
 import global_router as GR
 import model_endpoint_router as M
+import region_router as RR
 from request import GenerativeLLMRequest
 from scheduler import TokenJSQScheduler
 import simulator
@@ -27,12 +28,11 @@ def stub(cls, monkeypatch, now=0.0, changes=None, spot=True):
     a.calls = []
     a.results = {k: [] for k in ("timestamp", "model", "prod", "spot", "memory_util")}
     a.changes = {} if changes is None else dict(changes)
-    a.scaling_in_progress, a.next_scale_time = {"m": False}, {"m": 0}
+    a.next_scale_time = {"m": 0}
     a.overheads = NS(reclaim_spot=0, spin_up=0, spin_down=0)
-    a.cluster = NS(region=NS(model_endpoint_routers=[]), has_spot_instance=lambda m: spot, has_spot_instance_any=lambda: False,
-                   free_processors_and_kill_spot=lambda: [], get_spot_instance_count=lambda m: 0)
-    a.scale_up_from_spot = lambda ep: a.calls.append("up")
-    a.scale_down_to_spot = lambda ep: a.calls.append("down") or True
+    a.cluster = NS(region=NS(model_endpoint_routers=[]))
+    a._scale_up = lambda ep, trigger: spot and (a.calls.append("up") or True)
+    a._scale_down = lambda ep, trigger: a.calls.append("down") or True
     return a
 
 
@@ -79,8 +79,8 @@ def test_lt_i_applies_hourly_plan_without_arrivals(monkeypatch):
     plan.post_processing_strategy = "immediate"
     plan.current_allocations = lambda: [[[0]]]
     plan.get_ilp_forecast = lambda _: [[[2 if now == 0 else -1]]]
-    plan.region_clusters = {0: NS(arbiter=local)}
-    plan.region_routers = {0: NS(model_endpoint_routers={"m": ep})}
+    plan.region_clusters = {2: NS(arbiter=local)}
+    plan.region_routers = {2: NS(model_endpoint_routers={"m": ep})}
     router = object.__new__(GR.ProbabilisticRouter)
     router.long_term_scaling, router.global_arbiter = True, plan
 
@@ -168,6 +168,32 @@ def test_endpoint_routes_to_least_loaded_serving_deployment(monkeypatch):
     ep.schedulers = {i: NS(request_arrival=lambda q, i=i: seen.append(i)) for i in (0, 4, 5)}
     ep.route(NS())
     assert seen == [4]
+
+
+def test_dispatch_reselects_if_deployment_was_removed(monkeypatch):
+    events, seen = [], []
+    monkeypatch.setattr(M, "schedule_event", lambda delay, callback: events.append(callback))
+    ep = M.RoundRobin(region=None, model_name="m", start_state="orca", scaling_interval=15,
+                      scaling_level=0, short_term_scaling=False, overheads=NS(routing_delay=1))
+    for key, memory in [(3, 0.1), (7, 0.4)]:
+        ep.add_application(NS(application_id=key, get_memory=lambda memory=memory: memory,
+                              get_max_memory=lambda: 1,
+                              scheduler=NS(request_arrival=lambda request, key=key: seen.append(key))))
+    ep.route(NS())
+    ep.remove_application(ep.applications[0])
+    events.pop()()
+    assert seen == [7]
+
+
+def test_chiron_routes_to_mixed_when_dedicated_has_no_ready_capacity(monkeypatch):
+    monkeypatch.setattr(RR, "schedule_event", lambda delay, callback: callback())
+    seen = []
+    router = RR.ChironRegionRouter(overheads=NS(routing_delay=0))
+    router.add_model_endpoint(NS(model_name="m-p", get_max_memory=lambda: 0))
+    router.add_model_endpoint(NS(model_name="m", get_max_memory=lambda: 1, request_arrival=seen.append))
+    request = NS(model_type="m-p")
+    router.route(request)
+    assert seen == [request]
 
 
 def test_token_jsq_counts_decode_work_until_it_is_processed():

@@ -99,12 +99,29 @@ def test_cooldown_and_deployment_size(runs, name):
     parts = mem.instance.str.rsplit("_", n=2)          # <vùng>_<mô hình>_<deployment>_<instance>
     mem["app"] = parts.str[0] + "_" + parts.str[1]
     assert mem.groupby(["app", "time"]).instance.nunique().max() <= 3      # deployment 2–3 instance (§6.1)
-    ups = [l.split("SCALEUP_WASTE,")[1].split(",") for l in open(f"{out}/{name}/run.log", encoding="utf-8")
-           if "SCALEUP_WASTE," in l]
-    for (model, region), t in pd.DataFrame([(float(u[0]), u[1], u[4]) for u in ups],
-                                           columns=["t", "model", "region"]).groupby(["model", "region"]).t:
-        gaps = np.diff(np.unique(t.values))
-        assert (gaps >= 15 - 1e-6).all(), (model, region, gaps.min())   # cooldown 15 s (§4)
+    mem["endpoint"] = parts.str[0]
+    assert mem.groupby(["endpoint", "time"]).instance.nunique().min() >= 2
+
+    with (out / name / "run.log").open(encoding="utf-8") as log:
+        events = [line.split("SCALE_EVENT,", 1)[1].strip().split(",") for line in log if "SCALE_EVENT," in line]
+    directions = {event[4] for event in events}
+    assert "down" in directions
+    assert directions <= {"up", "down"}
+    if name in {"reactive", "lt_i"}:
+        assert "up" in directions
+    assert sum(event[4] == "up" for event in events) == len(scaleups(out / name / "run.log"))
+    times = []
+    for at, region, model, trigger, action, ready_before, pending_before, ready_after, pending_after in events:
+        before = int(ready_before) + int(pending_before)
+        after = int(ready_after) + int(pending_after)
+        assert min(before, after) >= 2
+        assert after - before == (1 if action == "up" else -1)
+        assert trigger == ("hourly" if name == "lt_i" else "request")
+        if trigger == "request":
+            times.append((float(at), model, region))
+    request_events = pd.DataFrame(times, columns=["time", "model", "region"])
+    gaps = request_events.sort_values("time").groupby(["model", "region"]).time.diff().dropna()
+    assert (gaps > 15).all()
 
 
 def scaleups(path):

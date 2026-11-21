@@ -151,10 +151,10 @@ class ProbabilisticRouter(GlobalRouter):
         raise ValueError(f"No preferred region can serve {request.model_type}")
 
     def _select_first_priority_region(self, request: Request) -> int:
-        region_id = next(self._candidate_regions(request), None)
-        if region_id is None:
-            raise ValueError(f"No preferred region hosts {request.model_type}")
-        return region_id
+        for region_id in self._candidate_regions(request):
+            if self.region_clusters[region_id].get_max_memory(request.model_type) > 0:
+                return region_id
+        raise ValueError(f"No preferred region can serve {request.model_type}")
 
     def route(self, request: Request, *, region_id=None):
         if self.long_term_scaling and self.global_arbiter.scaling_interval_reached():

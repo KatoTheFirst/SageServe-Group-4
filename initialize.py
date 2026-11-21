@@ -19,6 +19,7 @@ import simulator as simulator_module
 import instance as instance_module
 from controller import Controller
 from hardware_repo import HardwareRepo
+from model_endpoint_router import MAX_DEPLOYMENT_INSTANCES, MIN_DEPLOYMENT_INSTANCES
 from model_endpoint_repo import ModelEndpointRepo
 from arbiter_repo import ArbiterRepo
 from  global_arbiter_repo import GlobalArbiterRepo
@@ -164,21 +165,24 @@ def init_regions(cfg, controller):
                                                                                   model_endpoint_cfg.start_state,
                                                                                   cfg.scaling_interval,
                                                                                   cfg.scaling_level,
-                                                                                  cfg.short_term_scaling)
+                                                                                  cfg.short_term_scaling,
+                                                                                  min_instances=model_endpoint_cfg.get("min_instances", MIN_DEPLOYMENT_INSTANCES),
+                                                                                  max_instances=model_endpoint_cfg.get("max_instances"))
             if region_cfg.arbiter == "chiron_arbiter":
                 model_endpoint_router.set_prompt_time(model_endpoint_cfg.prompt_time)
                 model_endpoint_router.set_decode_throughput(model_endpoint_cfg.decode_throughput)
-            region.add_model_endpoint(model_endpoint_router)
             total_instances = model_endpoint_cfg.instance_count
-            if total_instances % 3 == 1:
-                instances = [3 for _ in range(total_instances//3 - 1)]
-                instances.extend([2, 2])
-            elif total_instances % 3 == 2:
-                instances = [3 for _ in range(total_instances//3)]
-                instances.append(2)
-            else:
-                instances = [3 for _ in range(total_instances//3)]
-            assert sum(instances) == total_instances
+            min_instances = model_endpoint_router.min_instances
+            max_instances = model_endpoint_router.max_instances
+            if total_instances < min_instances or (max_instances is not None and total_instances > max_instances):
+                raise ValueError(f"Initial instance count outside limits for {region.region_name}/{model_endpoint_cfg.model_name}")
+            region.add_model_endpoint(model_endpoint_router)
+            full_deployments, remainder = divmod(total_instances, MAX_DEPLOYMENT_INSTANCES)
+            instances = [MAX_DEPLOYMENT_INSTANCES] * full_deployments
+            if remainder == MIN_DEPLOYMENT_INSTANCES:
+                instances.append(MIN_DEPLOYMENT_INSTANCES)
+            elif remainder == 1:
+                instances[-1:] = [MIN_DEPLOYMENT_INSTANCES, MIN_DEPLOYMENT_INSTANCES]
             for idx, instance_count in enumerate(instances):
                 application = Application.from_config(application_repo.get_application_cfg(model_endpoint_cfg.model_name),
                                             application_id=idx,

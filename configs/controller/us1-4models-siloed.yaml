@@ -12,38 +12,46 @@ regions:
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 16
+    max_instances: 16
   - model_endpoint_id: 1
     model_name: llama2-70b-d
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 4
+    max_instances: 4
   - model_endpoint_id: 2
     model_name: bloom-176b-p
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 16
+    max_instances: 16
   - model_endpoint_id: 3
     model_name: bloom-176b-d
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 4
+    max_instances: 4
   - model_endpoint_id: 4
     model_name: llama3.1-8b-p
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 16
+    max_instances: 16
   - model_endpoint_id: 5
     model_name: llama3.1-8b-d
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 4
+    max_instances: 4
   - model_endpoint_id: 6
     model_name: llama3.2-3b-p
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 16
+    max_instances: 16
   - model_endpoint_id: 7
     model_name: llama3.2-3b-d
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 4
+    max_instances: 4

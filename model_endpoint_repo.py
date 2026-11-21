@@ -27,7 +27,7 @@ class ModelEndpointRepo():
     def get_model_endpoint_router(self, router_name, region, model_name, start_state, scaling_interval, scaling_level, short_term_scaling, **kwargs):
         cfg = self.model_endpoint_router_configs[router_name]
         return instantiate(cfg, region=region, model_name=model_name, start_state=start_state, scaling_interval=scaling_interval, scaling_level=scaling_level,
-                           short_term_scaling=short_term_scaling)
+                           short_term_scaling=short_term_scaling, **kwargs)
 
 get_model_endpoint_router = lambda *args,**kwargs: \
                         model_endpoint_repo.get_model_endpoint_router(*args, **kwargs)
