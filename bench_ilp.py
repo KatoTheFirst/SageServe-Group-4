@@ -4,7 +4,7 @@ import time
 
 from long_term_allocation import MilpLongTermAllocation
 
-for models, regions, gpus in [(4, 3, 1), (4, 3, 2), (10, 5, 2)]:
+for models, regions, gpus in [(4, 3, 1), (4, 3, 2), (10, 5, 2), (20, 20, 5)]:   # (20, 20, 5): mốc 33 s của §5 (D37)
     random.seed(0)
     a = MilpLongTermAllocation(models, regions, gpus,
                                model_tps=[[random.uniform(3e5, 2e6) for _ in range(gpus)] for _ in range(models)],

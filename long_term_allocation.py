@@ -14,8 +14,6 @@ from typing import List
 
 from pulp import LpMinimize, LpProblem, LpStatus, LpVariable, PULP_CBC_CMD, lpSum
 
-from simulator import clock
-
 
 class MilpLongTermAllocation:
     def __init__(self,
@@ -64,8 +62,10 @@ class MilpLongTermAllocation:
                 prob += total <= maximum
         prob += lpSum(self.gpu_cost[k] * delta[(i, j, k)] + self.startup_cost[i][k] * pos[(i, j, k)] for i, j, k in idx)
         if path:
+            from simulator import clock  # import trễ: tránh circular khi test độc lập
             prob.writeLP(f"{path}/../../ilp_outputs/my_output_at_{clock()}.lp")
-        status = prob.solve(PULP_CBC_CMD(msg=0))
+        # D37: dừng khi khoảng cách tương đối ≤ 0,01% (20×20×5: CBC mặc định > 6 phút, có ngưỡng ≤ 31 s; 4×3×1 δ không đổi)
+        status = prob.solve(PULP_CBC_CMD(msg=0, gapRel=1e-4))
         if LpStatus.get(status) != "Optimal":
             # §5 dùng "optimal number of changes": không có nghiệm tối ưu thì giữ cấu hình hiện tại (δ = 0) và cảnh báo (D30)
             logging.warning(f"ILP không có nghiệm tối ưu (trạng thái {LpStatus.get(status, status)}): giữ cấu hình hiện tại")

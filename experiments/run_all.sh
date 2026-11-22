@@ -1,6 +1,6 @@
 #!/bin/bash
 # Pha 4: mọi thí nghiệm trên trace v2. Tối đa 12 bài cùng lúc: week chiếm 4, các đợt còn lại chiếm tối đa 8.
-# Dùng: PY=... RESULTS_ROOT=D:/SageServe_results/v2/full bash experiments/run_all.sh
+# Dùng: PY=... RESULTS_ROOT=$RESULTS_ROOT/v2/full bash experiments/run_all.sh
 cd "$(dirname "$0")/.."
 log() { echo "$(date '+%d/%m %H:%M:%S') $*" >> "$RESULTS_ROOT/run_all.log"; }
 mkdir -p "$RESULTS_ROOT"

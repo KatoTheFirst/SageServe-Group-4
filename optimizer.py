@@ -26,10 +26,17 @@ Module này gói lại MilpLongTermAllocation với:
 from __future__ import annotations
 
 import logging
+import os
+import re
+import tempfile
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from pulp import LpMinimize, LpProblem, LpStatus, LpVariable, PULP_CBC_CMD, lpSum
+from pulp import LpMinimize, LpProblem, LpSolutionOptimal, LpStatus, LpVariable, PULP_CBC_CMD, lpSum
+
+# D37: dừng khi khoảng cách tương đối ≤ 0,01%. D37b: lưới an toàn 300 s; hết giờ thì dùng nghiệm tốt nhất và ghi gap vào log.
+ILP_GAP_REL = 1e-4
+ILP_TIME_LIMIT = 300
 
 
 @dataclass
@@ -84,6 +91,8 @@ class Optimizer:
     epsilon : float
         0 < ε ≤ 1, phần dung lượng tối thiểu mỗi vùng phải đáp ứng (phần còn lại
         có thể chuyển sang vùng khác).
+    instance_bounds : dict, optional
+        (chỉ số mô hình, chỉ số vùng) → (sàn, trần) trên tổng instance qua mọi GPU.
     """
 
     def __init__(
@@ -95,6 +104,7 @@ class Optimizer:
         gpu_cost: List[float],
         startup_cost: List[List[float]],
         epsilon: float = 1.0,
+        instance_bounds: dict[tuple[int, int], tuple[int, int | None]] | None = None,
     ) -> None:
         # ── Validate ──────────────────────────────────────────────
         if not (0 < epsilon <= 1):
@@ -115,6 +125,7 @@ class Optimizer:
         self.gpu_cost = gpu_cost
         self.startup_cost = startup_cost
         self.epsilon = epsilon
+        self.instance_bounds = instance_bounds or {}
 
     # ── public API ────────────────────────────────────────────────
 
@@ -178,6 +189,12 @@ class Optimizer:
                     capacity(i, j) >= self.epsilon * region_peak[i][j]
                 ), f"local_{i}_{j}"
 
+        for (i, j), (minimum, maximum) in self.instance_bounds.items():
+            total = lpSum(n[(i, j, k)] + delta[(i, j, k)] for k in range(self.gpus))
+            prob += total >= minimum, f"min_instances_{i}_{j}"
+            if maximum is not None:
+                prob += total <= maximum, f"max_instances_{i}_{j}"
+
         # Ràng buộc toàn cục
         for i in range(self.models):
             prob += (
@@ -195,7 +212,14 @@ class Optimizer:
         )
 
         # ── Giải ──────────────────────────────────────────────────
-        status = prob.solve(PULP_CBC_CMD(msg=0))
+        fd, log_path = tempfile.mkstemp(suffix=".cbc.log")
+        os.close(fd)
+        try:
+            status = prob.solve(PULP_CBC_CMD(msg=0, gapRel=ILP_GAP_REL, timeLimit=ILP_TIME_LIMIT, logPath=log_path))
+            if LpStatus.get(status) == "Optimal" and prob.sol_status != LpSolutionOptimal:
+                self._log_time_limit(prob, log_path)
+        finally:
+            os.remove(log_path)
         status_str = LpStatus.get(status, str(status))
 
         if status_str != "Optimal":
@@ -224,6 +248,24 @@ class Optimizer:
         )
 
     # ── helpers ───────────────────────────────────────────────────
+
+    @staticmethod
+    def _log_time_limit(prob, log_path):
+        """D37b: CBC dừng trước khi chứng minh gapRel (thường do hết ILP_TIME_LIMIT): ghi mục tiêu, cận dưới, gap."""
+        with open(log_path, encoding="utf-8", errors="replace") as f:      # đóng ngay để os.remove trong solve() không bị khóa trên Windows
+            text = f.read()
+        result = re.search(r"Result - (.*)", text)
+        bound = re.search(r"Lower bound:\s*(\S+)", text)
+        obj = prob.objective.value()
+        gap = None
+        if bound and obj is not None:
+            lb = float(bound.group(1))
+            gap = abs(obj - lb) / max(abs(lb), 1e-9)
+        logging.warning(
+            "ILP dừng trước khi đạt gapRel (%s; giới hạn %s s): dùng nghiệm tốt nhất, mục tiêu %s, cận dưới %s, gap %s",
+            result.group(1).strip() if result else "?", ILP_TIME_LIMIT, obj,
+            bound.group(1) if bound else "?", f"{gap:.4%}" if gap is not None else "?",
+        )
 
     def _validate_inputs(self, ca, rp, gp):
         if len(ca) != self.models:

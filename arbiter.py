@@ -271,7 +271,7 @@ class GlobalAribiterMemoryUtilizationScaling(BasicArbiter):
         self.changes[name] = self.changes.get(name, 0) - 1
 
 
-# LT-UA (§6.4): trong 20 phút cuối giờ, khi đã đạt số instance ILP, so TPS thực với dự báo ARIMA
+# LT-UA (§6.4): trong 20 phút cuối giờ, khi đã đạt hoặc vượt mục tiêu ILP, so TPS thực với dự báo ARIMA
 LTUA_WINDOW = 20 * 60
 LTUA_UP_RATIO = 5.0      # tải thực ≥ 5x dự báo -> tiếp tục tăng
 LTUA_DOWN_RATIO = 0.5    # tải thực ≤ 0,5x dự báo -> tiếp tục giảm
@@ -292,18 +292,39 @@ class GlobalArbiterARIMAChecking(GlobalAribiterMemoryUtilizationScaling):
             return observed / predicted
         return float("inf") if observed > 0 else 1.0
 
+    def log_ltua(self, model_endpoint, changes, ratio, action):
+        """Ghi quyết định theo tỷ lệ; hold và lt_u tối đa một dòng mỗi phút cho mỗi endpoint.
+        LTUA_RATIO,<giây>,<vùng>,<mô hình>,<changes>,<tải/dự báo>,<up|down|hold|lt_u>"""
+        minute = int(clock() // 60)
+        last = getattr(self, "_ltua_minute", {})
+        if action in ("hold", "lt_u") and last.get(model_endpoint.model_name) == minute:
+            return
+        last[model_endpoint.model_name] = minute
+        self._ltua_minute = last
+        region = getattr(getattr(self.cluster, "region", None), "region_name", "?")
+        logging.info(f"LTUA_RATIO,{clock()},{region},{model_endpoint.model_name},{changes},{ratio},{action}")
+
     def scale(self, model_endpoint):
         name = model_endpoint.model_name
-        target_reached = self.changes.get(name, 0) == 0
+        changes = self.changes.get(name, 0)
         in_window = clock() % 3600 >= 3600 - LTUA_WINDOW
-        if not (target_reached and in_window and name in self.arima_forecast):
+        # D38: có thể tăng theo dự báo cả khi còn mục tiêu scale-in (changes < 0).
+        if not (changes <= 0 and in_window and name in self.arima_forecast and self._can_scale(model_endpoint)):
             return super().scale(model_endpoint)
-        if self._can_scale(model_endpoint):
-            ratio = self.ratio_between_arima_and_actual(model_endpoint)
-            if ratio >= LTUA_UP_RATIO:
-                self._scale_up(model_endpoint, "request")
-            elif ratio <= LTUA_DOWN_RATIO:
-                self._scale_down(model_endpoint, "request")
+
+        ratio = self.ratio_between_arima_and_actual(model_endpoint)
+        if ratio >= LTUA_UP_RATIO:
+            self._scale_up(model_endpoint, "request")
+            action = "up"
+        elif changes < 0:
+            self.log_ltua(model_endpoint, changes, ratio, "lt_u")
+            return super().scale(model_endpoint)
+        elif ratio <= LTUA_DOWN_RATIO:
+            self._scale_down(model_endpoint, "request")
+            action = "down"
+        else:
+            action = "hold"
+        self.log_ltua(model_endpoint, changes, ratio, action)
         self.log_state(model_endpoint, self.memory_utilization(model_endpoint))
 
 

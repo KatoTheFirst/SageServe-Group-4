@@ -38,7 +38,7 @@ Nguồn: tab "Phân công chi tiết" của `Plan 12 tuần SageServe.xlsx` (fil
 | T38 | Vũ Hoàng Ân | runner thí nghiệm batch | `experiments/run.sh`, `run_all.sh`, `run_sens.sh`, `run_patched.py` | đủ |
 | T39 | Đoàn Việt Đức | routing/scaling hoàn chỉnh | LT-I, LT-U trong `arbiter.py`; `region_router.py`; JSQ ở `model_endpoint_router.py` | đủ |
 | T40 | Bùi Thanh Sơn | checklist nghiệm thu + báo cáo nháp | `check_paper_rules.py`, `docs/REPORT.md` | một phần |
-| T41 | Trần Tuấn Đạt | end-to-end v1 + bộ tham số chốt | `RESULTS.md`, `DECISIONS.md` (D1–D23) | đủ |
+| T41 | Trần Tuấn Đạt | end-to-end v1 + bộ tham số chốt | [Kết quả trên DEV-1D](E2E_DEV_V1.md), `RESULTS.md`, `DECISIONS.md` (D1–D23) | đủ |
 | T42 | Dương Tiến Đạt | forecast v2 + so sánh MAPE | không đổi ARIMA-60 (D16, D17); chỉ có chẩn đoán oracle/oracle_smooth | chưa |
 | T43 | Vũ Hoàng Ân | bộ log Siloed / Reactive / LT-I/U/UA | `run.sh s4`, `run.sh lt`; số ở `RESULTS.md` (kết quả mô phỏng không đẩy, lệnh tái tạo có) | đủ |
 | T44 | Đoàn Việt Đức | bản fix + test hồi quy | routing khi deployment đổi, giới hạn instance, cooldown, log `SCALE_EVENT` (`REPRODUCE.md` mục 4); `tests/test_pending_instances.py`, `tests/test_paper_rules.py`, `tests/test_end_to_end.py` | đủ |

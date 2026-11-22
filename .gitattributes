@@ -1,0 +1,3 @@
+# Script shell và file sha256 phải giữ LF để chạy được trong Git Bash và `sha256sum -c` (T38)
+*.sh text eol=lf
+SHA256SUMS* text eol=lf

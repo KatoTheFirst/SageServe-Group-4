@@ -57,3 +57,36 @@ def test_router_counts_only_iw_at_origin_region(monkeypatch):
     r.route(NS(is_interactive=True, region_priority="102", model_type="m", prompt_size=7))
     r.route(NS(is_interactive=False, region_priority="102", model_type="m", prompt_size=9))
     assert seen == {0: [], 1: [7]}                          # vùng gốc 1 dù được định tuyến về 0; NIW không tính
+
+
+def ltua_call(monkeypatch, changes, ratio_value, now=3000.0, in_progress=False):
+    """Một lần scale() của LT-UA với các phụ thuộc thay bằng bản ghi; trả danh sách hành động."""
+    calls = []
+    monkeypatch.setattr(arbiter, "clock", lambda: now)
+    monkeypatch.setattr(arbiter.GlobalAribiterMemoryUtilizationScaling, "scale", lambda self, ep: calls.append("lt_u"))
+    a = object.__new__(arbiter.GlobalArbiterARIMAChecking)
+    a.changes, a.next_scale_time = {"m": changes}, {"m": now + 60 if in_progress else 0}
+    a.arima_forecast = {"m": pd.Series({60: 1.0})}
+    a.cluster = NS(region=NS(model_endpoint_routers=[]))
+    a.results = {k: [] for k in ("timestamp", "model", "prod", "spot", "memory_util")}
+    a.ratio_between_arima_and_actual = lambda ep: calls.append("ratio") or ratio_value
+    a._scale_up = lambda ep, trigger: calls.append("up")
+    a._scale_down = lambda ep, trigger: calls.append("down")
+    a.scale(NS(model_name="m", get_max_memory=lambda: 0))
+    return calls
+
+
+def test_ltua_tang_khi_vuot_muc_tieu_scale_out(monkeypatch):
+    # D38: mục tiêu ILP dưới sàn -> changes < 0 mãi; tải >= 5x dự báo trong 20 phút cuối giờ thì vẫn tăng
+    assert ltua_call(monkeypatch, -3, 6.0) == ["ratio", "up"]
+    assert ltua_call(monkeypatch, -3, 2.0) == ["ratio", "lt_u"]          # chưa đủ 5x: LT-U tiếp tục giảm theo bộ nhớ
+    assert ltua_call(monkeypatch, -3, 0.1) == ["ratio", "lt_u"]          # chưa đạt mục tiêu scale-in: không giảm theo tỷ lệ
+    assert ltua_call(monkeypatch, -3, 6.0, in_progress=True) == ["lt_u"]
+
+
+def test_ltua_giu_nguyen_khi_dat_muc_tieu_hoac_ngoai_cua_so(monkeypatch):
+    assert ltua_call(monkeypatch, 0, 6.0) == ["ratio", "up"]
+    assert ltua_call(monkeypatch, 0, 0.4) == ["ratio", "down"]
+    assert ltua_call(monkeypatch, 0, 1.0) == ["ratio"]
+    assert ltua_call(monkeypatch, 2, 6.0) == ["lt_u"]                    # chưa đạt mục tiêu scale-out: LT-U
+    assert ltua_call(monkeypatch, -3, 6.0, now=1000.0) == ["lt_u"]       # ngoài 20 phút cuối giờ

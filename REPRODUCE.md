@@ -28,7 +28,7 @@ curl -sSLO $B/SHA256SUMS_forecasts_v2
 tr -d '\r' < traces/SHA256SUMS_v2 | sha256sum -c && sha256sum -c SHA256SUMS_forecasts_v2   # tr: git trên Windows checkout file này với CRLF
 ```
 
-Trace độ nhạy `traces/sens_*.csv` không có trong Release: sinh bằng `python experiments/make_sens_traces.py`. Trace chẩn đoán `traces/diag_fork_s4_westus_load.csv` (dòng Table 1 của RESULTS.md) cũng không có. Trace v2 sinh từ v1 bằng `make_trace_v2.py`; mỗi cờ sửa đúng một cổng trượt của `docs/TRACE_SPEC.md` (D2, D3, D8 trong `DECISIONS.md`). Chấm trace: `python qualify_trace.py <trace> --role t7|t11 ...`.
+Trace độ nhạy `traces/sens_*.csv` không có trong Release: sinh bằng `python experiments/make_sens_traces.py`. Trace chẩn đoán `traces/diag_fork_s4_westus_load.csv` (dòng Table 1 của RESULTS.md) cũng không có: `python fetch_traces.py --v2` tự sinh (`fork_trace.py --rate_scale 0.1139 --start_day 1 --days 1 --regions 0` rồi `make_trace_v2.py` cùng cờ với `fork_s4_westus_v2`, D18; khoảng 4 phút) và kiểm sha256. Trace v2 sinh từ v1 bằng `make_trace_v2.py`; mỗi cờ sửa đúng một cổng trượt của `docs/TRACE_SPEC.md` (D2, D3, D8 trong `DECISIONS.md`). Chấm trace: `python qualify_trace.py <trace> --role t7|t11 ...`.
 
 | Trace v2 | Lệnh (từ trace v1 cùng tên) |
 |---|---|
@@ -141,7 +141,7 @@ Với kết quả mới, script dùng trực tiếp các quyết định `SCALE_
 | ILP §5 | ràng buộc từng vùng ≥ ε·đỉnh, toàn cục ≥ đỉnh tổng, δ ≥ −n; min α·δ + σ·max(δ,0); đỉnh dự báo cả giờ tới; β = 10% tải NIW giờ trước | ε = 0,9; σ = α·600/3600; θ đo bằng `benchmark_theta.py` (mục 2) |
 | Dự báo | ARIMA cửa sổ 60 phút, TPM, dự báo 60 phút, mỗi giờ (nhân quả) | giờ 0 = trung bình giờ 0 |
 | Load Predictor | `global_arbiter.forecast_mode=online`: mỗi giờ huấn luyện ARIMA-60 trên TPM quan sát trong simulator (online so với offline: mô phỏng trùng khớp (compare_runs TRÙNG); dự báo lệch tương đối ≤ 6e-6 (≤ 0,005 TPM) do file offline làm tròn 2 chữ số); cả hai ghi `forecast_log.csv` (đỉnh/trung bình dự báo vs thực tế theo giờ). Cửa sổ dự báo canh theo phút tròn (trước 26/10 lấy nhầm phút đầu giờ sau → kết quả LT cũ hơi cấp thừa máy khi tải tăng) | — |
-| LT-I / LT-U / LT-UA | §6.4; ILP chạy ở mốc đầu mỗi giờ. LT-I áp dụng mục tiêu ngay. LT-U tiến tới mục tiêu khi bộ nhớ hiệu dụng > 70% (tăng) hoặc < 30% (giảm). LT-UA: 20 phút cuối giờ, tải ≥ 5x dự báo → tăng, ≤ 0,5x → giảm. Tải so sánh là input TPS của IW theo vùng gốc, cùng đại lượng với dự báo | `bash experiments/run.sh lt` |
+| LT-I / LT-U / LT-UA | §6.4; ILP chạy ở đầu mỗi giờ. LT-I áp dụng mục tiêu ngay. LT-U tăng khi bộ nhớ hiệu dụng > 70% hoặc giảm khi < 30% để tiến tới mục tiêu. Trong 20 phút cuối giờ, LT-UA có thể tăng khi đã đạt hoặc vượt mục tiêu ILP và tải ≥ 5× dự báo. LT-UA có thể giảm theo tỷ lệ ≤ 0,5× khi đã đạt mục tiêu ILP (D38). Tải so sánh là input TPS của IW theo vùng gốc | `bash experiments/run.sh lt` |
 | Định tuyến | chọn vùng phục vụ đầu tiên trong danh sách ưu tiên có bộ nhớ hiệu dụng < 70%; nếu các vùng phục vụ đều đạt ngưỡng, chọn vùng ít tải nhất. Trong vùng, chọn deployment có tỷ lệ bộ nhớ hiệu dụng thấp nhất rồi dùng JSQ theo tổng token prefill và decode còn lại | — |
 | Bộ lập lịch §6.5 | FCFS / EDF / PF / DPA (`queue_policy`) | τ_p = 1 s, τ_n = 5 s |
 | Chiron | 10/5/5 mỗi mô hình mỗi vùng, Θ = 0,6 | profile offline từ bảng hiệu năng (batch 64) |
@@ -149,9 +149,9 @@ Với kết quả mới, script dùng trực tiếp các quyết định `SCALE_
 | Độ trễ co giãn | instance mới phục vụ sau 600 s (khởi động) / ~60 s (lấy lại spot) – đặt ở allocator; code gốc để 0 (sẵn sàng tức thì). Trước 27/10 nhánh khởi động từ GPU spot của mô hình khác (`scaling_level: 2`) vẫn gọi `pre_start=True` nên lên tức thì | — |
 | ILP: số instance hiện có | đếm cả instance đang lấy lại spot / khởi động (trước 27/10 không đếm → ILP giao thêm máy trùng) | — |
 | Cooldown | Quyết định theo request của cùng endpoint cách nhau hơn 15 s mặc định (D30). Mốc bắt đầu khi tổng số instance ready và pending thay đổi. LT-I áp dụng các quyết định theo giờ cùng lúc | D30 |
-| Giới hạn instance | Deployment giữ 2–3 instance tính cả pending. Endpoint có sàn mặc định 2. Cấu hình §4 đặt trần 20 cho Unified, 16/4 cho IW/NIW Siloed. Có thể đặt `min_instances` và `max_instances` ở từng endpoint. ILP và các đường thực thi dùng cùng giới hạn | D37 |
-| Deployment đang co giãn | Router tra lại deployment khi chuyển request. Tách deployment giữ ít nhất một instance sẵn sàng ở mỗi bên. Instance spot phải xử lý xong tải đang dở trước khi GPU được cấp lại cho mô hình khác | D37 |
-| Log co giãn | `SCALE_EVENT,timestamp,region,model,trigger,action,ready_before,pending_before,ready_after,pending_after` ghi mỗi lần số instance đặt chỗ thực sự thay đổi. `trigger` là `request` hoặc `hourly`. `SCALEUP_WASTE` tiếp tục ghi thời gian chờ sẵn sàng | D37 |
+| Giới hạn instance | Deployment giữ 2–3 instance tính cả pending. Endpoint có sàn mặc định 2. Cấu hình §4 đặt trần 20 cho Unified, 16/4 cho IW/NIW Siloed. Có thể đặt `min_instances` và `max_instances` ở từng endpoint. `Optimizer` và các đường thực thi dùng cùng giới hạn | D39 |
+| Deployment đang co giãn | Router tra lại deployment khi chuyển request. Tách deployment giữ ít nhất một instance sẵn sàng ở mỗi bên. Instance spot phải xử lý xong tải đang dở trước khi GPU được cấp lại cho mô hình khác | D39 |
+| Log co giãn | `SCALE_EVENT,timestamp,region,model,trigger,action,ready_before,pending_before,ready_after,pending_after` ghi mỗi lần số instance đặt chỗ thực sự thay đổi. `trigger` là `request` hoặc `hourly`. `SCALEUP_WASTE` ghi thời gian chờ sẵn sàng. `LTUA_RATIO` ghi quyết định của LT-UA theo tỷ lệ tải thực và dự báo | D38, D39 |
 | θ theo trace | θ đo riêng cho từng trace và GPU (mục 2) | `data/theta_tps_fork.csv`, `data/theta_tps_h100.csv` |
 | §7.2.6 | tranh chấp như bài báo (FCFS TTFT Q3 ~5,6 s): năng lực cố định 0,75 x Reactive | SLA IW-N 6 s là kịch bản phụ suy từ số liệu §7.2.6 |
 | §7.2.5 | Llama 4 Scout không có trong bảng hiệu năng → mô hình thứ 5 dùng profile Llama-2-70B, luồng thật ngày thứ Tư | thay thế |
