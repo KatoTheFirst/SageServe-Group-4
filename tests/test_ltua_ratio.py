@@ -65,14 +65,14 @@ def ltua_call(monkeypatch, changes, ratio_value, now=3000.0, in_progress=False):
     monkeypatch.setattr(arbiter, "clock", lambda: now)
     monkeypatch.setattr(arbiter.GlobalAribiterMemoryUtilizationScaling, "scale", lambda self, ep: calls.append("lt_u"))
     a = object.__new__(arbiter.GlobalArbiterARIMAChecking)
-    a.changes, a.scaling_in_progress, a.next_scale_time = {"m": changes}, {"m": in_progress}, {"m": now + 60 if in_progress else 0}
+    a.changes, a.next_scale_time = {"m": changes}, {"m": now + 60 if in_progress else 0}
     a.arima_forecast = {"m": pd.Series({60: 1.0})}
     a.cluster = NS(region=NS(model_endpoint_routers=[]))
     a.results = {k: [] for k in ("timestamp", "model", "prod", "spot", "memory_util")}
     a.ratio_between_arima_and_actual = lambda ep: calls.append("ratio") or ratio_value
-    a.scale_up_logic = lambda ep: calls.append("up")
-    a.scale_down_to_spot = lambda ep: calls.append("down")
-    a.scale(NS(model_name="m"))
+    a._scale_up = lambda ep, trigger: calls.append("up")
+    a._scale_down = lambda ep, trigger: calls.append("down")
+    a.scale(NS(model_name="m", get_max_memory=lambda: 0))
     return calls
 
 

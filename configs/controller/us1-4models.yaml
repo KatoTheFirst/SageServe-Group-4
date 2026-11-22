@@ -11,18 +11,22 @@ regions:
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 20
+    max_instances: 20
   - model_endpoint_id: 1
     model_name: bloom-176b
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 20
+    max_instances: 20
   - model_endpoint_id: 2
     model_name: llama3.1-8b
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 20
+    max_instances: 20
   - model_endpoint_id: 3
     model_name: llama3.2-3b
     model_endpoint_router: round_robin
     start_state: orca
     instance_count: 20
+    max_instances: 20

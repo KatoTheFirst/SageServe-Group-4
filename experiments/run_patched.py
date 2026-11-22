@@ -42,7 +42,7 @@ if os.environ.get("SAGE_LITERAL"):
             self.last_scale_timestamp = clock()
         serving = [a for a in self.applications if a.get_max_memory() > 0]
         self.idx = (self.idx + 1) % len(serving)
-        scheduler = self.schedulers[list(self.schedulers.keys())[serving[self.idx].application_id]]
+        scheduler = self.schedulers[serving[self.idx].application_id]
         schedule_event(self.overheads.routing_delay, lambda s=scheduler, r=request: s.request_arrival(r))
     mer.RoundRobin.route = route_literal
 if SPIN_UP:

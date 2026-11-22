@@ -91,6 +91,8 @@ class Optimizer:
     epsilon : float
         0 < ε ≤ 1, phần dung lượng tối thiểu mỗi vùng phải đáp ứng (phần còn lại
         có thể chuyển sang vùng khác).
+    instance_bounds : dict, optional
+        (chỉ số mô hình, chỉ số vùng) → (sàn, trần) trên tổng instance qua mọi GPU.
     """
 
     def __init__(
@@ -102,6 +104,7 @@ class Optimizer:
         gpu_cost: List[float],
         startup_cost: List[List[float]],
         epsilon: float = 1.0,
+        instance_bounds: dict[tuple[int, int], tuple[int, int | None]] | None = None,
     ) -> None:
         # ── Validate ──────────────────────────────────────────────
         if not (0 < epsilon <= 1):
@@ -122,6 +125,7 @@ class Optimizer:
         self.gpu_cost = gpu_cost
         self.startup_cost = startup_cost
         self.epsilon = epsilon
+        self.instance_bounds = instance_bounds or {}
 
     # ── public API ────────────────────────────────────────────────
 
@@ -185,6 +189,12 @@ class Optimizer:
                     capacity(i, j) >= self.epsilon * region_peak[i][j]
                 ), f"local_{i}_{j}"
 
+        for (i, j), (minimum, maximum) in self.instance_bounds.items():
+            total = lpSum(n[(i, j, k)] + delta[(i, j, k)] for k in range(self.gpus))
+            prob += total >= minimum, f"min_instances_{i}_{j}"
+            if maximum is not None:
+                prob += total <= maximum, f"max_instances_{i}_{j}"
+
         # Ràng buộc toàn cục
         for i in range(self.models):
             prob += (
@@ -206,7 +216,7 @@ class Optimizer:
         os.close(fd)
         try:
             status = prob.solve(PULP_CBC_CMD(msg=0, gapRel=ILP_GAP_REL, timeLimit=ILP_TIME_LIMIT, logPath=log_path))
-            if prob.sol_status != LpSolutionOptimal:
+            if LpStatus.get(status) == "Optimal" and prob.sol_status != LpSolutionOptimal:
                 self._log_time_limit(prob, log_path)
         finally:
             os.remove(log_path)

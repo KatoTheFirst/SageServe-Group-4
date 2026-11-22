@@ -22,33 +22,35 @@ def reactive(monkeypatch, t, reclaim=0):
     monkeypatch.setattr(arbiter, "clock", lambda: t[0])
     a = object.__new__(arbiter.BasicArbiter)
     a.calls, a.results = [], {k: [] for k in ("timestamp", "model", "prod", "spot", "memory_util")}
-    a.scaling_in_progress, a.next_scale_time = {}, {}
+    a.next_scale_time = {}
     a.overheads = NS(reclaim_spot=reclaim, spin_up=600, spin_down=0)
-    a.cluster = NS(region=NS(model_endpoint_routers=[]), has_spot_instance=lambda m: True, has_spot_instance_any=lambda: False,
-                   get_spot_instance_count=lambda m: 0)
+    a.cluster = NS(region=NS(model_endpoint_routers=[], region_name="westus"))
 
-    def up(ep):
-        a.calls.append(("up", t[0])); ep.applications[0].pending_instances += 1
-    a.scale_up_from_spot = up
-    a.scale_down_to_spot = lambda ep: a.calls.append(("down", t[0]))
+    def up(ep, trigger):
+        before = ep.instance_counts()
+        a.calls.append(("up", t[0]))
+        ep.applications[0].pending_instances += 1
+        return a._record_scale(ep, before, trigger, "up", reclaim)
+    a._scale_up = up
     return a
 
 
 def router(monkeypatch, t, arb, mem):
     monkeypatch.setattr(M, "clock", lambda: t[0])
+    monkeypatch.setattr(M, "schedule_event", lambda delay, callback: None)
     r = object.__new__(M.RoundRobin)
     r.short_term_scaling, r.scaling_interval, r.last_scale_timestamp = True, 15, -1e9
     r.model_name, r.scaling_level = "m", 1
     r.region = NS(region_cluster=NS(arbiter=arb))
-    r.applications = [NS(instances=[], pending_instances=0, get_max_memory=lambda: 0)]   # không deployment phục vụ: route dừng sau khối co giãn
+    r.overheads = NS(routing_delay=0)
+    r.applications = [NS(instances=[], pending_instances=0)]
     r.get_memory, r.get_max_memory = (lambda: mem[0]), (lambda: 1.0)
     return r
 
 
 def arrive(r, t, now):
     t[0] = now
-    with pytest.raises(ValueError):          # min() trên danh sách rỗng: dừng ngay sau khối co giãn
-        r.route(NS(prompt_size=1))
+    r.route(NS(prompt_size=1))
 
 
 def test_noop_call_does_not_restart_cooldown(monkeypatch):
@@ -77,6 +79,7 @@ def test_scaling_event_restarts_cooldown_at_decision_time(monkeypatch):
     arrive(r, t, 10.0)                       # quyết định tăng lúc 10 (instance còn pending)
     assert r.last_scale_timestamp == 10.0
     arrive(r, t, 24.0)                       # chưa đủ 15 s
+    arrive(r, t, 25.0)                       # D30 giữ biên > 15 s
     arrive(r, t, 25.5)
     assert [c for c, _ in a.calls] == ["up", "up"] and a.calls[1][1] == 25.5
 

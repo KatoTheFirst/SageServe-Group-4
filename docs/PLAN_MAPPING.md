@@ -41,7 +41,7 @@ Nguồn: tab "Phân công chi tiết" của `Plan 12 tuần SageServe.xlsx` (fil
 | T41 | Trần Tuấn Đạt | end-to-end v1 + bộ tham số chốt | [Kết quả trên DEV-1D](E2E_DEV_V1.md), `RESULTS.md`, `DECISIONS.md` (D1–D23) | đủ |
 | T42 | Dương Tiến Đạt | forecast v2 + so sánh MAPE | không đổi ARIMA-60 (D16, D17); chỉ có chẩn đoán oracle/oracle_smooth | chưa |
 | T43 | Vũ Hoàng Ân | bộ log Siloed / Reactive / LT-I/U/UA | `run.sh s4`, `run.sh lt`; số ở `RESULTS.md` (kết quả mô phỏng không đẩy, lệnh tái tạo có) | đủ |
-| T44 | Đoàn Việt Đức | bản fix + test hồi quy | các sửa khởi động, ILP đếm instance chờ (`REPRODUCE.md` mục 4); `tests/test_pending_instances.py`, `tests/test_paper_rules.py` | đủ |
+| T44 | Đoàn Việt Đức | bản fix + test hồi quy | routing khi deployment đổi, giới hạn instance, cooldown, log `SCALE_EVENT` (`REPRODUCE.md` mục 4); `tests/test_pending_instances.py`, `tests/test_paper_rules.py`, `tests/test_end_to_end.py` | đủ |
 | T45 | Bùi Thanh Sơn | notebook phân tích tự động + bảng sơ bộ | dạng script: `analyze_s4.py`, `analyze_waste.py`, `experiments/analyze_*.py`, `experiments/reactive_behavior.py` | một phần (script thay notebook) |
 | T46 | Trần Tuấn Đạt | kế hoạch thí nghiệm + ablation ε/β | `run.sh week`; ε, β ở `SENSITIVITY.md`; β 5/15% ở `RESULTS.md` (D18) | đủ |
 | T47 | Dương Tiến Đạt | bảng ablation forecast | ảnh hưởng chất lượng dự báo lên instance-hours: `run.sh oracle`, `experiments/analyze_oracle.py`; chưa chạy mô hình dự báo thay thế trong mô phỏng | một phần |

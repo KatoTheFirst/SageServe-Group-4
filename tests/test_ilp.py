@@ -16,3 +16,11 @@ def test_eps_allows_reroute():
 
 def test_global_constraint_binds():
     assert sum(r[0][0] for r in make(0.5).get_ilp_allocations([[[0], [0]]], [[100, 100]], [450])) == 5
+
+
+def test_instance_bounds_exclude_undeployed_model_region_and_enforce_floor():
+    solver = make(0.5)
+    solver.instance_bounds = {(0, 0): (2, 3), (0, 1): (0, 0)}
+    assert solver.get_ilp_allocations([[[3], [0]]], [[0, 0]], [0]) == [[[-1]], [[0]]]
+    assert solver.get_ilp_allocations([[[2], [0]]], [[100, 0]], [300]) == [[[1]], [[0]]]
+    assert solver.get_ilp_allocations([[[2], [0]]], [[100, 0]], [310]) == [[[0]], [[0]]]

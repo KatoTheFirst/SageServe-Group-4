@@ -558,6 +558,18 @@ class TestConstraintInteraction:
         assert total_cap >= gp[0], f"Vi phạm toàn cục: {total_cap} < {gp[0]}"
 
 
+def test_endpoint_bounds_apply_across_gpu_types():
+    opt = Optimizer(
+        models=1, regions=2, gpus=2,
+        model_tps=[[100, 300]], gpu_cost=[10, 30], startup_cost=[[1, 3]],
+        instance_bounds={(0, 0): (2, 3), (0, 1): (0, 0)},
+    )
+    current = [[[2, 0], [0, 0]]]
+    assert opt.solve(current, [[0, 0]], [0]).delta == [[[0, 0]], [[0, 0]]]
+    assert opt.solve(current, [[0, 0]], [600]).delta == [[[-2, 2]], [[0, 0]]]
+    assert opt.solve(current, [[0, 0]], [901]).status == "Infeasible"
+
+
 def test_d37b_het_gio_dung_nghiem_tot_nhat_va_ghi_gap(monkeypatch, caplog):
     """D37b: bài 20×20×5 khó (bench_ilp.py, seed 0, lượt 10; gapRel đơn thuần mất ~118 s). Giới hạn 2 s:
     phải dừng ~2 s, trả nghiệm khả thi (không về δ = 0) và ghi gap vào log."""

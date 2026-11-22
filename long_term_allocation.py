@@ -23,7 +23,8 @@ class MilpLongTermAllocation:
                  model_tps: List[List[float]],
                  gpu_cost: List[float],
                  startup_cost: List[List[float]],
-                 epsilon: float = 1.0) -> None:
+                 epsilon: float = 1.0,
+                 instance_bounds=None) -> None:
         assert 0 < epsilon <= 1, "§5: 0 < ε ≤ 1"
         assert len(model_tps) == models and all(len(r) == gpus for r in model_tps)
         assert len(startup_cost) == models and all(len(r) == gpus for r in startup_cost)
@@ -33,6 +34,7 @@ class MilpLongTermAllocation:
         self.gpu_cost = gpu_cost            # α[k]
         self.startup_cost = startup_cost    # σ[i][k]
         self.epsilon = epsilon
+        self.instance_bounds = instance_bounds or {}  # (model index, region index) -> (min, max)
 
     def get_ilp_allocations(self,
                             current_allocation: List[List[List[int]]],
@@ -53,6 +55,11 @@ class MilpLongTermAllocation:
             for j in range(self.regions):
                 prob += cap(i, j) >= self.epsilon * region_peak[i][j]
             prob += lpSum(cap(i, j) for j in range(self.regions)) >= global_peak[i]
+        for (i, j), (minimum, maximum) in self.instance_bounds.items():
+            total = lpSum(n[(i, j, k)] + delta[(i, j, k)] for k in range(self.gpus))
+            prob += total >= minimum
+            if maximum is not None:
+                prob += total <= maximum
         prob += lpSum(self.gpu_cost[k] * delta[(i, j, k)] + self.startup_cost[i][k] * pos[(i, j, k)] for i, j, k in idx)
         if path:
             from simulator import clock  # import trễ: tránh circular khi test độc lập

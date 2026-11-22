@@ -94,12 +94,22 @@ class RegionCluster:
         return instance
     
     def free_processors_and_kill_spot(self):
-        spot_models = [k for k,v in self.spot_instances.items() if len(v) > 0]
-        random_model = random.choice(spot_models)
-        instance = self.remove_spot_instance(random_model)
-        processors = instance.processors
-        del instance
-        return processors
+        # Instance rời deployment vẫn có thể đang xử lý request đã nhận.
+        reusable = {}
+        for model, spots in self.spot_instances.items():
+            for instance in spots:
+                if not (instance.batch or instance.pending_queue or instance.blocked_queue
+                        or instance.sched_pending_tokens > 0):
+                    reusable[model] = instance
+                    break
+        if not reusable:
+            return None
+        model = random.choice(list(reusable))
+        instance = reusable[model]
+        self.spot_instances[model].remove(instance)
+        for processor in instance.processors:
+            processor.instances.remove(instance)
+        return instance.processors
     
     def is_cached(self, model_type):
         return model_type in self.cache

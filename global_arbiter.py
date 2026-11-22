@@ -140,6 +140,12 @@ class MilpGlobalArbiter(GlobalArbiter):
         self.model_list = unique_models
         for i in range(self.models):
             self.model_to_idx_mapping[unique_models[i]] = i
+        instance_bounds = {}
+        for j, region_id in enumerate(sorted(self.region_routers)):
+            endpoints = self.region_routers[region_id].model_endpoint_routers
+            for i, model_name in enumerate(unique_models):
+                endpoint = endpoints.get(model_name)
+                instance_bounds[i, j] = (endpoint.min_instances, endpoint.max_instances) if endpoint else (0, 0)
         # θ (§2.1, §5): input TPS 1 instance ở latency mục tiêu, đo bằng benchmark_theta.py; dự báo tính theo TPM nên ×60
         theta = pd.read_csv(self.theta_file).set_index("model").theta_tps
         self.milp_allocator = Optimizer(
@@ -151,8 +157,12 @@ class MilpGlobalArbiter(GlobalArbiter):
             # σ: chi phí khởi động = α x thời gian khởi động (§5), α tính theo giờ
             startup_cost=[[self.gpu_cost * self.startup_time / 3600] for _ in range(self.models)],
             epsilon=self.epsilon,
+            instance_bounds=instance_bounds,
         )
-        self.num_instances_log = {f"region_{i}_model_{j}": [] for i in range(self.regions) for j in range(self.models)}
+        self.num_instances_log = {
+            f"region_{region_id}_model_{i}": []
+            for region_id in self.region_routers for i in range(self.models)
+        }
         self.num_instances_log["time"] = []
     def current_allocations(self) -> List[List[List[int]]]:
         ca = {}
@@ -163,11 +173,9 @@ class MilpGlobalArbiter(GlobalArbiter):
                 val = sum(len(app.instances) + app.pending_instances
                           for app in region_router.model_endpoint_routers[model_name].applications)
                 cur_region[self.model_to_idx_mapping[model_name]][0] += val
-            for model_name in region_router.model_endpoint_routers.keys(): 
-                self.num_instances_log[f"region_{region_id}_model_{self.model_to_idx_mapping[model_name]}"].append(cur_region[self.model_to_idx_mapping[model_name]][0])
+            for i, count in enumerate(cur_region):
+                self.num_instances_log[f"region_{region_id}_model_{i}"].append(count[0])
             ca[region_id] = cur_region
-            if ca[region_id] == None:
-                ca[region_id] = 0
         self.num_instances_log["time"].append(clock())
         return [ca[k] for k in sorted(ca.keys())]
     
@@ -200,7 +208,8 @@ class MilpGlobalArbiter(GlobalArbiter):
         minutes = range(int(cur_time // 60) * 60, int(cur_time // 60) * 60 + 3600, 60)
         region_peak = [[0.0] * self.regions for _ in range(self.models)]
         series = [[] for _ in range(self.models)]
-        for region_id, region_router in self.region_routers.items():
+        for j, region_id in enumerate(sorted(self.region_routers)):
+            region_router = self.region_routers[region_id]
             for model_name in region_router.model_endpoint_routers.keys():
                 i = self.model_to_idx_mapping[model_name]
                 df = self.predict_hour(region_id, model_name, cur_time)
@@ -210,7 +219,7 @@ class MilpGlobalArbiter(GlobalArbiter):
                 dev = self.dev_df[region_id][model_name]
                 dev = dev[(dev["arrival_timestamp"] >= cur_time - 3600) & (dev["arrival_timestamp"] < cur_time)]
                 beta = NIW_BUFFER * dev["prompt_size"].sum() / 60
-                region_peak[i][region_id] = (df["Predicted"].max() if len(df) else 0) + beta
+                region_peak[i][j] = (df["Predicted"].max() if len(df) else 0) + beta
                 tpm = df.set_index("Time")["Predicted"].reindex(minutes, fill_value=0)
                 series[i].append(tpm + beta)
         global_peak = [pd.concat(s_, axis=1).fillna(0).sum(axis=1).max() if s_ else 0 for s_ in series]
@@ -238,16 +247,16 @@ class MilpGlobalArbiter(GlobalArbiter):
         return actions
 
     def schedul_scaling_events(self, changes: List[Tuple[bool, int, int, int, int]]) -> None:
-        for e in changes:
-            action, delay, region, model, gpu = e
+        region_ids = sorted(self.region_routers)
+        for action, delay, region, model, _ in changes:
             if clock() + delay >= self.max_time:
                 continue
-            if action:
-                f = lambda self=self, region=region, model=model: self.region_clusters[region].arbiter.force_scale_up(self.region_routers[region].model_endpoint_routers[self.model_list[model]])
-                schedule_event(delay, f)
-            else:
-                f = lambda self=self, region=region, model=model: self.region_clusters[region].arbiter.force_scale_down(self.region_routers[region].model_endpoint_routers[self.model_list[model]])
-                schedule_event(delay, f)
+            region_id = region_ids[region]
+            endpoint = self.region_routers[region_id].model_endpoint_routers.get(self.model_list[model])
+            if endpoint is not None:
+                arbiter = self.region_clusters[region_id].arbiter
+                scale = arbiter.force_scale_up if action else arbiter.force_scale_down
+                schedule_event(delay, lambda scale=scale, endpoint=endpoint: scale(endpoint))
 
     def scale(self) -> None:
         ilp_forecast: List[List[List[int]]] = self.get_ilp_forecast(self.arima_traces)
