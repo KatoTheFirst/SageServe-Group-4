@@ -26,10 +26,17 @@ Module này gói lại MilpLongTermAllocation với:
 from __future__ import annotations
 
 import logging
+import os
+import re
+import tempfile
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from pulp import LpMinimize, LpProblem, LpStatus, LpVariable, PULP_CBC_CMD, lpSum
+from pulp import LpMinimize, LpProblem, LpSolutionOptimal, LpStatus, LpVariable, PULP_CBC_CMD, lpSum
+
+# D37: dừng khi khoảng cách tương đối ≤ 0,01%. D37b: lưới an toàn 300 s; hết giờ thì dùng nghiệm tốt nhất và ghi gap vào log.
+ILP_GAP_REL = 1e-4
+ILP_TIME_LIMIT = 300
 
 
 @dataclass
@@ -195,7 +202,14 @@ class Optimizer:
         )
 
         # ── Giải ──────────────────────────────────────────────────
-        status = prob.solve(PULP_CBC_CMD(msg=0))
+        fd, log_path = tempfile.mkstemp(suffix=".cbc.log")
+        os.close(fd)
+        try:
+            status = prob.solve(PULP_CBC_CMD(msg=0, gapRel=ILP_GAP_REL, timeLimit=ILP_TIME_LIMIT, logPath=log_path))
+            if prob.sol_status != LpSolutionOptimal:
+                self._log_time_limit(prob, log_path)
+        finally:
+            os.remove(log_path)
         status_str = LpStatus.get(status, str(status))
 
         if status_str != "Optimal":
@@ -224,6 +238,24 @@ class Optimizer:
         )
 
     # ── helpers ───────────────────────────────────────────────────
+
+    @staticmethod
+    def _log_time_limit(prob, log_path):
+        """D37b: CBC dừng trước khi chứng minh gapRel (thường do hết ILP_TIME_LIMIT): ghi mục tiêu, cận dưới, gap."""
+        with open(log_path, encoding="utf-8", errors="replace") as f:      # đóng ngay để os.remove trong solve() không bị khóa trên Windows
+            text = f.read()
+        result = re.search(r"Result - (.*)", text)
+        bound = re.search(r"Lower bound:\s*(\S+)", text)
+        obj = prob.objective.value()
+        gap = None
+        if bound and obj is not None:
+            lb = float(bound.group(1))
+            gap = abs(obj - lb) / max(abs(lb), 1e-9)
+        logging.warning(
+            "ILP dừng trước khi đạt gapRel (%s; giới hạn %s s): dùng nghiệm tốt nhất, mục tiêu %s, cận dưới %s, gap %s",
+            result.group(1).strip() if result else "?", ILP_TIME_LIMIT, obj,
+            bound.group(1) if bound else "?", f"{gap:.4%}" if gap is not None else "?",
+        )
 
     def _validate_inputs(self, ca, rp, gp):
         if len(ca) != self.models:

@@ -13,7 +13,7 @@ import runner  # noqa: E402
 
 CFG_DIR = os.path.join(runner.REPO, "experiments", "configs")
 COUNTS = {"s4": 2, "lt": 4, "oracle": 12, "chiron": 1, "sched": 8, "nov2024": 4, "burst": 4, "h100": 4, "niw": 8, "scale5": 4,
-          "week": 4, "sens": 21, "sens2": 10, "s4load": 1}
+          "week": 4, "sens": 21, "sens2": 10, "s4load": 1, "t43_dev": 5, "t43_v2_6h": 5}
 
 FAKE = r'''
 import os, sys

@@ -557,3 +557,31 @@ class TestConstraintInteraction:
         )
         assert total_cap >= gp[0], f"Vi phạm toàn cục: {total_cap} < {gp[0]}"
 
+
+def test_d37b_het_gio_dung_nghiem_tot_nhat_va_ghi_gap(monkeypatch, caplog):
+    """D37b: bài 20×20×5 khó (bench_ilp.py, seed 0, lượt 10; gapRel đơn thuần mất ~118 s). Giới hạn 2 s:
+    phải dừng ~2 s, trả nghiệm khả thi (không về δ = 0) và ghi gap vào log."""
+    import logging
+    import random
+    import time
+    import optimizer
+
+    monkeypatch.setattr(optimizer, "ILP_TIME_LIMIT", 2)
+    random.seed(0)
+    l, r, g = 20, 20, 5
+    tps = [[random.uniform(3e5, 2e6) for _ in range(g)] for _ in range(l)]
+    cost, start = [10 * (k + 1) for k in range(g)], [[10 * (k + 1) / 6 for k in range(g)] for _ in range(l)]
+    for _ in range(10):
+        n = [[[random.randint(2, 20) for _ in range(g)] for _ in range(r)] for _ in range(l)]
+        peak = [[random.uniform(1e6, 2e7) for _ in range(r)] for _ in range(l)]
+    gp = [1.1 * sum(p) for p in peak]
+    t = time.perf_counter()
+    with caplog.at_level(logging.WARNING):
+        res = optimizer.Optimizer(l, r, g, tps, cost, start, epsilon=0.9).solve(n, peak, gp)
+    assert time.perf_counter() - t < 30
+    assert res.is_optimal and any(x != 0 for row in res.delta for m in row for x in m)
+    for i in range(l):
+        cap = [sum((n[i][j][k] + res.delta[j][i][k]) * tps[i][k] for k in range(g)) for j in range(r)]
+        assert all(c + 1e-6 >= 0.9 * peak[i][j] for j, c in enumerate(cap)) and sum(cap) + 1e-6 >= gp[i]
+        assert all(n[i][j][k] + res.delta[j][i][k] >= 0 for j in range(r) for k in range(g))
+    assert "Stopped on time limit" in caplog.text and "gap" in caplog.text
