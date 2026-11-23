@@ -138,8 +138,10 @@ class BasicArbiter(Arbiter):
         last = apps[-1]
         split = size(last) == MAX_DEPLOYMENT_INSTANCES
         if split:
-            # Phải giữ lại ít nhất một instance phục vụ trong deployment hiện tại khi tách.
-            if len(last.instances) < 2:
+            # Tách = chuyển 1 instance ready sang deployment mới. Theo request: giữ lại ít nhất một instance ready ở deployment cũ.
+            # Theo ILP (LT-I, "hourly"): chỉ cần 1 instance ready để chuyển, vì §6.4 đòi áp đủ δ ngay tại mốc giờ (D40);
+            # deployment cũ chỉ còn pending thì chưa nhận request (RoundRobin bỏ deployment có max_memory = 0).
+            if len(last.instances) < (1 if trigger == "hourly" else 2):
                 return False
             destination = last
         elif size(last) == MIN_DEPLOYMENT_INSTANCES:

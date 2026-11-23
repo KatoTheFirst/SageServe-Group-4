@@ -133,3 +133,26 @@ def test_ilp_current_allocation_counts_pending(monkeypatch):
     a.num_instances_log = {"region_0_model_0": [], "time": []}
     a.region_routers = {0: NS(model_endpoint_routers={"m": NS(applications=[app(3), app(2, 1)])})}
     assert a.current_allocations() == [[[6]]]
+
+
+@pytest.mark.parametrize("start", [[3] * 7, [3, 3, 2], [2]])
+def test_lt_i_applies_full_ilp_delta_at_the_hour(monkeypatch, caplog, start):
+    # D40 (T48 bậc 2): ở cùng mốc giờ không instance nào kịp ready; trước đây sau ~3 lần tăng thì việc tách deployment
+    # bị chặn (cần 2 ready) và phần δ còn lại của ILP bị bỏ (eastus Bloom t = 54000 s: δ = +24, áp 3).
+    ep, scaling = endpoint_with_arbiter(monkeypatch, arbiter.GlobalArbiterAwareShortTermArbiter, *[app(n) for n in start])
+    ids = iter(range(1, 1000))
+
+    def new_deployment(*args, **kwargs):
+        d = app(0)
+        d.application_id = next(ids)
+        return d
+
+    monkeypatch.setattr(arbiter.application_repo, "get_application_cfg", lambda name: None)
+    monkeypatch.setattr(arbiter.Application, "from_config", new_deployment)
+    with caplog.at_level("INFO"):
+        for _ in range(24):
+            scaling.force_scale_up(ep)
+    assert sum(ep.instance_counts()) == sum(start) + 24
+    assert all(arbiter.size(a) in (2, 3) for a in ep.applications)
+    assert sum(len(a.instances) for a in ep.applications) == sum(start)      # instance ready không mất, chỉ chuyển deployment
+    assert sum(r.message.startswith("SCALE_EVENT,") for r in caplog.records) == 24
