@@ -1,7 +1,7 @@
 # Phụ lục A: IW:NIW 9:1 và 1:1 (run.sh niw_ratio)
 name: niw
 end_time: 86400
-ram_gb: 3.4
+ram_gb: 4.3   # RSS đỉnh T48 3.39 GB (INDEX.csv 25/11/2026) × 1,25, làm tròn lên 0,1
 prefix: [performance_model.db_path=data/perf_model_4models.csv]
 common: [trace=random_trace, "trace.filename={trace}", "controller={controller}", "global_arbiter.arima_traces=traces/forecasts/{forecast}", "global_arbiter.theta_file={theta}"]
 runs:
