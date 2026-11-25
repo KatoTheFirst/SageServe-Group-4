@@ -1,10 +1,10 @@
 # §7.2.7 cả tuần; lập lịch theo D33 (run.sh week)
 name: week
 end_time: 604800
-ram_gb: 3.7
+ram_gb: 5.6   # RSS đỉnh T48 4.48 GB (INDEX.csv 25/11/2026) × 1,25, làm tròn lên 0,1
 prefix: [performance_model.db_path=data/perf_model_4models.csv]
 common: [trace=random_trace, "trace.filename={trace}", "controller={controller}", "global_arbiter.arima_traces=traces/forecasts/{forecast}", "global_arbiter.theta_file={theta}"]
 runs:
   - lt4: {vars: {trace: composed_week_3regions_v2, forecast: composed_week_3regions_v2, controller: us3-4models, theta: data/theta_tps_v2.csv}, ref_prefix: week/}
-# D33: bài kế chỉ khởi động khi mọi bài đang chạy đã qua đỉnh khởi động; ram_gb 3,7 × 1,15 ≈ 4,23 GB như D33
+# D33: bài kế chỉ khởi động khi mọi bài đang chạy đã qua đỉnh khởi động; ram_gb 5,6 × 1,15 ≈ 6,44 GB (D33; đỉnh đo lại ở T48)
 stagger: {peak_rss_gb: 1.2, peak_sim_t: 3600}

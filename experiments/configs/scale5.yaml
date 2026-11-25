@@ -1,7 +1,7 @@
 # §7.2.5 (thay thế): thêm mô hình thứ 5 (run.sh scale5)
 name: scale5
 end_time: 86400
-ram_gb: 2.6
+ram_gb: 2.5   # RSS đỉnh T48 1.99 GB (INDEX.csv 25/11/2026) × 1,25, làm tròn lên 0,1
 prefix: [performance_model.db_path=data/perf_model_4models.csv]
 common: [trace=random_trace, "trace.filename={trace}", "controller={controller}", "global_arbiter.arima_traces=traces/forecasts/{forecast}", "global_arbiter.theta_file={theta}"]
 runs:

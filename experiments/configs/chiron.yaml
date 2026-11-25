@@ -1,7 +1,7 @@
 # §7.2.3: Chiron 10/5/5, Θ = 0,6 (run.sh chiron)
 name: chiron
 end_time: 86400
-ram_gb: 2.6
+ram_gb: 1.6   # RSS đỉnh T48 1.24 GB (INDEX.csv 25/11/2026) × 1,25, làm tròn lên 0,1
 prefix: [performance_model.db_path=data/perf_model_4models.csv]
 runs:
   - {name: chiron, overrides: [trace=random_trace, trace.filename=composed_day_3regions_v2, controller=us3-4models-chiron, siloed=True], ref: chiron/chiron}
