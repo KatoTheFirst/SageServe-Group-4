@@ -4,6 +4,11 @@ Mỗi mức tải: 1 vùng, số instance cố định, không co giãn, request
 Request chưa có TTFT khi bài kết thúc tính là vượt mục tiêu. θ nội suy tại điểm P95 cắt mục tiêu giữa hai mức liền kề.
 
 Dùng: python benchmark_theta.py traces/composed_day_3regions.csv us1-4models data/theta_tps.csv --out results/theta_bench/a100
+
+D42 (phương án a, b; mặc định giữ cách cũ): --instances 1 --target iwn60 đo θ(a) = TPS lớn nhất mà TTFT P95 của IW-N ≤ 60 s
+(§2.2) và θ(b) = mức lớn nhất mà hàng đợi không tăng ở nửa sau cửa sổ đến (độ dốc ≤ 0 hoặc tăng ≤ 5%) VÀ ≥ 99% request
+trong cửa sổ xong trước khi hết thời gian xả. Kết quả ghi theta_d42.json cạnh curve.csv; θ không xác định thì ghi null.
+--levels L1 L2 ...: chỉ chạy đúng các mức này (đo thử), không tinh chỉnh, không ghi θ.
 """
 import argparse
 import concurrent.futures as cf
@@ -25,6 +30,7 @@ WARMUP, ARRIVE, DRAIN = 600, 2400, 1800
 ROUTING_DELAY = 1            # configs/global_router/overheads/zero.yaml
 LADDER = 100 * 1.25 ** np.arange(0, 32)      # 100 ... ~100k TPS/instance
 REFINE = 10
+TARGET_IWN = 60.0            # D42 (a): SLA IW-N §2.2 "< 1 min … at the 95th percentile"
 
 
 def make_trace(iw, level, seed):
@@ -76,14 +82,43 @@ def run_level(model, level, iw, a, seed=0):
     os.remove(trace)
     if p.returncode or "TraceSimulator completed" not in p.stdout + p.stderr:
         raise RuntimeError(f"{tag}: {(p.stdout + p.stderr)[-1500:]}")
-    g = pd.concat(pd.read_csv(f, usecols=["request_id", "ttft"]) for f in glob.glob(f"{out}/global_router/*.csv"))
+    g = pd.concat(pd.read_csv(f, usecols=["request_id", "ttft", "completion_time"]) for f in glob.glob(f"{out}/global_router/*.csv"))
     win = df[df.arrival_timestamp.between(WARMUP, ARRIVE)]
     ttft = g[g.request_id.isin(win.request_id)].ttft.values - ROUTING_DELAY
+    win_n = win[win.scenario == "IW-N"]
+    ttft_n = g[g.request_id.isin(win_n.request_id)].ttft.values - ROUTING_DELAY
     return {"model": model, "level_tps": level, "requests": len(win), "finished": len(ttft),
-            "ttft_p95": p95_with_unfinished(win, ttft)}
+            "ttft_p95": p95_with_unfinished(win, ttft), "requests_iwn": len(win_n), "ttft_p95_iwn": p95_with_unfinished(win_n, ttft_n),
+            **saturation(df, g, len(ttft) / max(len(win), 1))}
+
+
+def in_system(df, g, t):
+    """Số request đã đến mà chưa xong tại các thời điểm t (request chưa xong khi hết bài tính là còn trong hệ thống)."""
+    arr, done = np.sort(df.arrival_timestamp.values), np.sort(g.completion_time.values)
+    return np.searchsorted(arr, t, side="right") - np.searchsorted(done, t, side="right")
+
+
+def saturation(df, g, finished_frac):
+    """D42 (b): nửa sau cửa sổ đến, số request trong hệ thống không tăng (độ dốc ≤ 0 hoặc cuối ≤ 1,05 × đầu) VÀ ≥ 99% xong."""
+    t = np.arange((WARMUP + ARRIVE) / 2, ARRIVE + 1e-9, 60.0)
+    n = in_system(df, g, t)
+    slope = float(np.polyfit(t, n, 1)[0])
+    ok = (slope <= 0 or n[-1] <= 1.05 * n[0]) and finished_frac >= 0.99
+    return {"q_start": int(n[0]), "q_end": int(n[-1]), "q_slope_per_s": slope, "finished_frac": finished_frac, "sat_ok": bool(ok)}
+
+
+def theta_b(x):
+    """D42 (b): mức lớn nhất còn sat_ok trước mức trượt đầu tiên (thang tăng dần); None nếu mức thấp nhất đã trượt."""
+    best = None
+    for l, ok in zip(x.level_tps.values, x.sat_ok.values):
+        if not ok:
+            break
+        best = float(l)
+    return best
 
 
 def main():
+    global INSTANCES
     ap = argparse.ArgumentParser()
     ap.add_argument("trace")
     ap.add_argument("controller")
@@ -92,14 +127,26 @@ def main():
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--models", nargs="*", default=list(TARGET_P95))
     ap.add_argument("--hour", type=int, help="Chỉ lấy mẫu request của giờ này (đo năng lực ở tỉ lệ IW-F/IW-N của giờ đó)")
+    ap.add_argument("--instances", type=int, default=INSTANCES, help="D42: số instance cố định (bài báo §2.1: 1 instance)")
+    ap.add_argument("--target", choices=["table1", "iwn60"], default="table1", help="D42 (a): iwn60 = TTFT P95 của IW-N ≤ 60 s")
+    ap.add_argument("--levels", type=float, nargs="*", help="D42: chỉ chạy các mức này (đo thử), không ghi θ")
     a = ap.parse_args()
     a.out = a.out.rstrip("/")
+    INSTANCES = a.instances
+    target = TARGET_P95 if a.target == "table1" else {m: TARGET_IWN for m in TARGET_P95}
+    col = "ttft_p95" if a.target == "table1" else "ttft_p95_iwn"
     t = pd.read_csv(a.trace, dtype={"regions": str})
     t = t[t.workload_type == "prod"]
     if a.hour is not None:
         t = t[t.arrival_timestamp // 3600 == a.hour]
     os.makedirs(a.out, exist_ok=True)
     rows = []
+    if a.levels:
+        with cf.ThreadPoolExecutor(a.workers) as ex:
+            res = [r for m in a.models for r in ex.map(lambda l: run_level(m, l, t[t.model_type == m], a), a.levels)]
+        pd.DataFrame(res).to_csv(f"{a.out}/thu.csv", index=False)
+        print(pd.DataFrame(res).to_string(), flush=True)
+        return
     cached = pd.read_csv(f"{a.out}/curve.csv") if os.path.exists(f"{a.out}/curve.csv") else pd.DataFrame()
     with cf.ThreadPoolExecutor(a.workers) as ex:
         for model in a.models:                  # các mức tăng dần theo đợt, dừng ngay đợt có mức trượt
@@ -114,13 +161,14 @@ def main():
                 res = list(ex.map(lambda l: run_level(model, l, iw, a), ladder[i:i + a.workers]))
                 done += res
                 print(*[f"{model} {r['level_tps']:.0f}: P95 {r['ttft_p95']:.2f} ({r['finished']}/{r['requests']})" for r in res], sep="\n", flush=True)
-                if any(r["ttft_p95"] > TARGET_P95[model] for r in res):
+                # D42: với iwn60 đi tiếp tới khi cả (a) vượt 60 s và (b) có mức trượt, để θ(b) không bị cắt sớm
+                if any(r[col] > target[model] for r in res) and (a.target == "table1" or not all(r["sat_ok"] for r in res)):
                     break
             rows += done
         # khuỷu rất dốc -> tinh chỉnh: thêm các mức giữa hai mức bao quanh điểm cắt
         for model in a.models:
             x = pd.DataFrame(rows).query("model == @model").sort_values("level_tps")
-            over = x.ttft_p95.values > TARGET_P95[model]
+            over = x[col].values > target[model]
             if not over.any() or over[0]:
                 continue
             k = over.argmax()
@@ -128,6 +176,14 @@ def main():
             rows += list(ex.map(lambda l: run_level(model, l, t[t.model_type == model], a), levels))
     res = pd.DataFrame(rows).sort_values(["model", "level_tps"])
     res.to_csv(f"{a.out}/curve.csv", index=False)
+    if a.target == "iwn60":         # D42: không ghi đè file θ; θ không xác định thì null
+        import json
+        out = {m: {"theta_a": crossing(x.level_tps.values, x.ttft_p95_iwn.values, TARGET_IWN), "theta_b": theta_b(x),
+                   "muc_cao_nhat": float(x.level_tps.max())}     # θ bằng mức cao nhất nghĩa là "≥ mức đó" (trần thang)
+               for m, x in res.groupby("model")}
+        json.dump(out, open(f"{a.out}/theta_d42.json", "w"), indent=1)
+        print("[+] θ D42:", out, flush=True)
+        return
     old = pd.read_csv(a.theta_csv).set_index("model").theta_tps
     theta = {m: crossing(x.level_tps.values, x.ttft_p95.values, TARGET_P95[m]) for m, x in res.groupby("model")}
     for m, v in theta.items():
