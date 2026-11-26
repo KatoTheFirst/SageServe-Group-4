@@ -8,6 +8,22 @@ from node import Node
 from simulator import clock, schedule_event, cancel_event, reschedule_event
 
 
+def pool_add(request, tokens):
+    """D41 pool: token đầu ra vừa sinh chiếm thêm sức chứa của instance đã được gán."""
+    instance = getattr(request, "pool_instance", None)
+    if instance is not None:
+        instance.sched_pool_tokens += tokens
+        request.pool_tokens += tokens
+
+
+def pool_release(request):
+    """D41 pool: request xong thì trả lại toàn bộ token đã tính."""
+    instance = getattr(request, "pool_instance", None)
+    if instance is not None:
+        instance.sched_pool_tokens -= request.pool_tokens
+        request.pool_instance, request.pool_tokens = None, 0
+
+
 class TaskType(IntEnum):
     COMPUTE = 0
     PROMPT = 1
@@ -135,6 +151,7 @@ class PromptTask(Task):
         self.request.processed_tokens += self.processing_tokens
         self.generated_tokens += self.generating_tokens
         self.request.generated_tokens += self.generating_tokens
+        pool_add(self.request, self.generating_tokens)
         self.processing_tokens = 0
         self.generating_tokens = 0
 
@@ -208,6 +225,7 @@ class TokenTask(Task):
         self.request.processed_tokens += self.processing_tokens
         self.generated_tokens += self.generating_tokens
         self.request.generated_tokens += self.generating_tokens
+        pool_add(self.request, self.generating_tokens)
         self.processing_tokens = 0
         self.generating_tokens = 0
 
@@ -220,6 +238,7 @@ class TokenTask(Task):
         # update scheduler bookkeeping
         if not self.track_remaining_tokens:
             self.instance.sched_pending_tokens -= 1
+        pool_release(self.request)
 
         # ensure that we generated all tokens
         assert self.processed_tokens == self.token_size

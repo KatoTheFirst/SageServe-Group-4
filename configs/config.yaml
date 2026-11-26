@@ -36,6 +36,8 @@ long_term_scaling: False
 print_class_stack: False
 
 siloed: False
+router:
+  token_count: oracle   # D41: oracle | prompt1 | pool (TokenJSQ đếm token còn lại)
 queue_policy: fcfs   # §6.5: fcfs | edf | pf | dpa (hàng đợi cục bộ của instance)
 
 choices: ${hydra:runtime.choices}
