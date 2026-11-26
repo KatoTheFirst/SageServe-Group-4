@@ -16,6 +16,18 @@ from simulator import clock, feed_async, schedule_event, cancel_event, reschedul
 from task import Task, TaskType
 from flow import FlowType
 
+# D41: cách TokenJSQ đếm "token còn lại" (cấu hình router.token_count, đặt trong initialize.py).
+# oracle (mặc định, PR #8): prompt + độ dài đầu ra thật, trừ dần; prompt1 (v2.1): prompt + 1;
+# pool: chọn instance còn nhiều sức chứa token nhất = max_available_memory / byte KV 1 token − (prompt + output đã sinh).
+TOKEN_COUNTS = ("oracle", "prompt1", "pool")
+TOKEN_COUNT = "oracle"
+
+
+def pool_free_tokens(instance):
+    """D41 pool: sức chứa token còn trống, chỉ dùng thông tin biết lúc quyết định."""
+    a, size = instance.model.architecture, instance.model.size
+    return instance.max_available_memory / (2 * a.hidden_size * a.num_layers * size.dtype_size) - instance.sched_pool_tokens
+
 
 class Scheduler(ABC):
     """
@@ -391,16 +403,26 @@ class TokenJSQScheduler(Scheduler):
         # enable run-to-completion by chaining
         prompt_task.chain = [token_task]
 
-        instance = min(self.instances,
-                       key=lambda instance: instance.sched_pending_tokens)
+        if TOKEN_COUNT == "pool":
+            instance = max(self.instances, key=pool_free_tokens)
+        else:
+            instance = min(self.instances,
+                           key=lambda instance: instance.sched_pending_tokens)
         for node in request.dag.nodes:
             if isinstance(node, Task):
                 node.instance = instance
             else:
                 raise ValueError(f"Unsupported node type: {type(node)}")
 
-        token_task.track_remaining_tokens = True
-        instance.sched_pending_tokens += prompt_task.prompt_size + token_task.token_size
+        if TOKEN_COUNT == "oracle":
+            token_task.track_remaining_tokens = True
+            instance.sched_pending_tokens += prompt_task.prompt_size + token_task.token_size
+        else:
+            # sổ sách v2.1; với pool chỉ còn dùng để biết instance còn việc (region_cluster)
+            instance.sched_pending_tokens += prompt_task.prompt_size + 1
+        if TOKEN_COUNT == "pool":
+            request.pool_instance, request.pool_tokens = instance, prompt_task.prompt_size
+            instance.sched_pool_tokens += prompt_task.prompt_size
 
 
 class KVRoundRobinScheduler(KVScheduler):
