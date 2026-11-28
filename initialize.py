@@ -17,6 +17,7 @@ from arbiter import Arbiter
 import arbiter_repo
 import simulator as simulator_module
 import instance as instance_module
+import scheduler as scheduler_module
 from controller import Controller
 from hardware_repo import HardwareRepo
 from model_endpoint_router import MAX_DEPLOYMENT_INSTANCES, MIN_DEPLOYMENT_INSTANCES
@@ -149,6 +150,9 @@ def init_regions(cfg, controller):
     region_clusters = {}
     simulator_module.NIW_SIGNAL_GRANULARITY = cfg.feed_async_granularity
     instance_module.QUEUE_POLICY = cfg.queue_policy
+    if cfg.router.token_count not in scheduler_module.TOKEN_COUNTS:
+        raise ValueError(f"router.token_count phải thuộc {scheduler_module.TOKEN_COUNTS}, nhận {cfg.router.token_count}")
+    scheduler_module.TOKEN_COUNT = cfg.router.token_count
     # print(cfg.controller.regions)
     for region_cfg in cfg.controller.regions:
         # print(region_cfg)

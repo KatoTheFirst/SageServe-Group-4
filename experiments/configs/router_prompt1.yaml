@@ -1,0 +1,9 @@
+# D41: như lt.yaml (Reactive / LT-I / LT-U / LT-UA, trace chính 1 ngày) nhưng TokenJSQ đếm token còn lại theo router.token_count=prompt1.
+# oracle (mặc định) = T48 lt (t48_d40/lt). Bài ra <gốc>/router_prompt1/<chiến lược>/seed0.
+name: router_prompt1
+end_time: 86400
+ram_gb: 2.0   # như lt.yaml
+prefix: [performance_model.db_path=data/perf_model_4models.csv]
+common: [trace=random_trace, "trace.filename={trace}", "controller={controller}", "global_arbiter.arima_traces=traces/forecasts/{forecast}", "global_arbiter.theta_file={theta}", "router.token_count=prompt1"]
+runs:
+  - lt4: {vars: {trace: composed_day_3regions_v2, forecast: composed_day_3regions_v2, controller: us3-4models, theta: data/theta_tps_v2.csv}, ref_prefix: lt/}

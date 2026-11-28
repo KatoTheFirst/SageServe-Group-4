@@ -103,6 +103,7 @@ class Instance():
         ## scheduler metadata
         self.sched_memory = self.model.size.total_size
         self.sched_pending_tokens = 0
+        self.sched_pool_tokens = 0   # D41 router.token_count=pool
         self.sched_tag = None
 
         ## instance logger
