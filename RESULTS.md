@@ -100,6 +100,22 @@ Vì vậy với `lt`: Reactive đổi do PR #8 và D39; LT-I chỉ do PR #8; LT-
 - **Nếu θ = 177 thì** cả ba chiến lược LT dùng **nhiều** giờ máy hơn Reactive (+12 đến +52% tổng), độ trễ bằng hoặc tốt hơn Reactive một chút. Tuyên bố tiết kiệm của §7.2.1 khi đó đổi chiều (✘). Với θ repo, LT tiết kiệm nhưng độ trễ Llama-2 xấu đi. Kết quả LT trong mô phỏng này nhạy với θ hơn mọi yếu tố khác đã thử; bài báo không cho loại request và độ trễ mục tiêu dùng để benchmark θ, nên đây là hạn chế loại C (D30).
 - Lệnh: như `run.sh lt` với `global_arbiter.theta_file=data/theta_tps_v2_177.csv` (`experiments/configs/theta177.yaml`, chưa commit: việc sau T48); `python analyze_s4.py $R/theta177/reactive $R/theta177/lt_i $R/theta177/lt_u $R/theta177/lt_ua --skip_hours 1`.
 
+## Phụ lục: góp ý của thầy (27–28/11/2026)
+
+**Chỉ báo cáo, không đổi mặc định code, không thay kết quả chính.** Ba hướng; tiêu chí ghi trước khi đo ở D41–D43, mỗi hướng một vòng. Kết quả ở `$RESULTS_ROOT/thay_gop_y/`.
+
+- **ILP cỡ lớn (D43).** 100 bài 20×20×5 mới trên `Optimizer` (gapRel 1e-4, timeLimit 300 s), mỗi bài một tiến trình, chạy một mình: **80/100 bài xong ≤ 33 s** (lần đầu); trung vị 0,9 s, P90 300,5 s, max 301,3 s; 13 bài hết 300 s. 21 bài chậm (20 bài mới > 33 s và bài cũ 117,9 s) chạy lại 5 lần: **cả 21 là "bài khó", không bài nào "nhiễu"** (max/min 1,00–1,24, không lần nào ≤ 33 s, 5 lần cùng mục tiêu). Luôn dừng ≤ 300 s; gap lúc dừng ≤ 1,55e-4. Bài báo §5: 33 s ở (20, 20, 5); ở đây đạt ở 80% bài.
+- **Router trong vùng: cách đếm "token còn lại" (D41).** Tùy chọn `router.token_count`; `oracle` (mặc định, độ dài đầu ra thật) chạy lại `lt_i` TRÙNG T48. Tiết kiệm so Reactive cùng cách đếm, 4 bài `lt`:
+
+| Cách đếm | Tiết kiệm tổng LT-I / LT-U / LT-UA | Tiết kiệm Llama-2 LT-I | TTFT P95 Llama-2 LT-I | Vi phạm SLA IW Llama-2 LT-I |
+|---|---|---|---|---|
+| `oracle` (mặc định, T48) | 14,32 / 7,76 / 7,37% | 21,94% | 109,81 s | 14,73% |
+| `prompt1` (prompt + 1, như v2.1) | 12,86 / 7,12 / 5,92% | 20,79% | 73,95 s | 13,58% |
+| `pool` (sức chứa KV − đang chiếm) | 13,85 / 8,52 / 6,87% | 21,54% | 74,68 s | 16,79% |
+
+  Ba cách cách nhau ≤ 1,5 điểm tiết kiệm; đuôi TTFT LT-I Llama-2 giảm 109,81 → 73,95–74,68 s khi bỏ độ dài đầu ra thật nhưng vẫn > 60 s (liên quan vấn đề còn mở (1)). **Mặc định giữ `oracle`.** Đề xuất `prompt1` (nhóm quyết): chỉ dùng thông tin biết lúc quyết định và sát §6.1 "the instance with the minimum remaining tokens to process" hơn `pool` (đếm bộ nhớ, căn cứ của cấp vùng/endpoint).
+- **θ (D42).** (a) TPS đầu vào/instance lớn nhất mà TTFT P95 IW-N ≤ 60 s (2 instance, trace v2 giờ 8): Bloom 448,9 (θ repo 386,42, +16,2%), Llama-2 981,1 (θ repo 976,26, +0,5%); Llama-3.1-8B và 3.2-3B không xác định (≥ 2273,7 và ≥ 100: thang đo dừng ở tải giờ cao nhất mà chưa mức nào vượt 60 s). Trượt tiêu chí (2) của D42 nên **giữ θ repo**; số (a) của Bloom, Llama-2 chỉ là phụ lục. (b) điểm bão hòa: nhiễu (Bloom trượt ngay mức thấp nhất), chỉ tham khảo.
+
 ## Kiểm tra cuối
 
 - **Kiểm tái lập T48 (25/11/2026):** chạy lại `lt/lt_ua` (trên a5d1967, so với bài `t48_d40` chạy trên cc0659d) và `s4/unified` cùng override, chỉ đổi `output_dir`. `compare_runs.py` cho TRÙNG cả 2 bài (2040 và 696 file, 0 khác biệt). Các mục bên dưới là kiểm tra của v2.1 và v2, giữ để tham khảo.
